@@ -1,14 +1,14 @@
 const nodemailer = require('nodemailer');
 
-// SMTP yapılandırması (Render uyumlu - Port 587 STARTTLS)
+// SMTP yapılandırması (Hosting sağlayıcısı önerisi - Port 465 SSL)
 const emailConfig = {
-  host: process.env.SMTP_HOST || 'srv03.trwww.com',
-  port: Number(process.env.SMTP_PORT || 587),
-  secure: false, // 587 -> STARTTLS
-  requireTLS: true, // STARTTLS zorunlu
+  host: process.env.SMTP_HOST || 'srvc03.trwww.com',
+  port: Number(process.env.SMTP_PORT || 465),
+  secure: true, // 465 -> SSL
+  requireTLS: false, // SSL kullanıyoruz
   auth: {
-    user: process.env.SMTP_USER || 'repas@chatnow.com.tr',
-    pass: process.env.SMTP_PASS || '',
+    user: process.env.SMTP_USER || 'repass@chatnow.com.tr',
+    pass: process.env.SMTP_PASS || 'chatnowchat',
   },
   // Sertifika zinciri sorunlarında yalnızca teşhis amaçlı aktif bırakılabilir
   tls: { rejectUnauthorized: false },
@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport(emailConfig);
 const sendEmail = async (to, subject, html) => {
   try {
     const mailOptions = {
-      from: process.env.MAIL_FROM || 'ChatNow <repas@chatnow.com.tr>',
+      from: process.env.MAIL_FROM || 'ChatNow <repass@chatnow.com.tr>',
       to,
       subject,
       html,
