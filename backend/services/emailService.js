@@ -1,37 +1,27 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
-// SMTP yapılandırması (Hosting sağlayıcısı önerisi - Port 465 SSL)
-const emailConfig = {
-  host: process.env.SMTP_HOST || 'srvc03.trwww.com',
-  port: Number(process.env.SMTP_PORT || 465),
-  secure: true, // 465 -> SSL
-  requireTLS: false, // SSL kullanıyoruz
-  auth: {
-    user: process.env.SMTP_USER || 'repass@chatnow.com.tr',
-    pass: process.env.SMTP_PASS || 'chatnowchat',
-  },
-  // Sertifika zinciri sorunlarında yalnızca teşhis amaçlı aktif bırakılabilir
-  tls: { rejectUnauthorized: false },
-};
-
-// Transporter
-const transporter = nodemailer.createTransport(emailConfig);
+// SendGrid API Key'i environment variable'dan al
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // Genel e‑posta gönderim fonksiyonu
 const sendEmail = async (to, subject, html) => {
+  const msg = {
+    to: to,
+    from: process.env.MAIL_FROM || 'ChatNow <repass@chatnow.com.tr>',
+    subject: subject,
+    html: html,
+  };
+
   try {
-    const mailOptions = {
-      from: process.env.MAIL_FROM || 'ChatNow <repass@chatnow.com.tr>',
-      to,
-      subject,
-      html,
-    };
-    const result = await transporter.sendMail(mailOptions);
-    console.log('Email gönderildi:', result.messageId);
-    return { success: true, messageId: result.messageId };
+    await sgMail.send(msg);
+    console.log('✅ Email başarıyla gönderildi (SendGrid)!');
+    return { success: true, message: 'Email başarıyla gönderildi.' };
   } catch (error) {
-    console.error('Email gönderme hatası:', error);
-    return { success: false, error: error.message };
+    console.error('❌ Email gönderme hatası (SendGrid):', error);
+    if (error.response) {
+      console.error(error.response.body);
+    }
+    throw new Error('Email gönderilemedi. Lütfen daha sonra tekrar deneyin.');
   }
 };
 
