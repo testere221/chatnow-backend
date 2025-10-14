@@ -12,7 +12,7 @@ const emailConfig = {
 };
 
 // Email transporter oluştur
-const transporter = nodemailer.createTransporter(emailConfig);
+const transporter = nodemailer.createTransport(emailConfig);
 
 // Email gönderme fonksiyonu
 const sendEmail = async (to, subject, html) => {
