@@ -17,7 +17,7 @@ const Chat = require('./models/Chat');
 const Block = require('./models/Block');
 
 // Services
-const { sendPasswordResetEmail } = require('./services/emailService');
+const { sendEmail } = require('./services/emailService');
 
 // Test data generators
 const generateRandomUser = () => {
@@ -1992,8 +1992,18 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Email gönder
-    const emailResult = await sendPasswordResetEmail(email, resetToken);
+    // Email gönder - SMTP ile
+    const resetLink = `https://chatnow.com.tr/reset-password.html?token=${resetToken}`;
+    const emailHtml = `
+      <h2>Şifre Sıfırlama</h2>
+      <p>Merhaba ${user.name},</p>
+      <p>Şifrenizi sıfırlamak için aşağıdaki linke tıklayın:</p>
+      <a href="${resetLink}" style="background: #007AFF; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Şifremi Sıfırla</a>
+      <p>Bu link 24 saat geçerlidir.</p>
+      <p>Eğer bu talebi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+    `;
+    
+    const emailResult = await sendEmail(email, 'ChatNow - Şifre Sıfırlama', emailHtml);
     
     if (emailResult.success) {
       res.json({ 
@@ -2001,9 +2011,9 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         success: true 
       });
     } else {
-      res.status(500).json({ 
+      res.status(500).json({
         message: 'Email gönderilemedi. Lütfen daha sonra tekrar deneyin.',
-        error: emailResult.error 
+        error: emailResult.error
       });
     }
   } catch (error) {
@@ -2070,12 +2080,9 @@ app.post('/api/auth/reset-password', async (req, res) => {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
 
-    // Yeni şifreyi hash'le
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Şifreyi güncelle
+    // Şifreyi güncelle (hash'leme yok, plain text)
     await User.findByIdAndUpdate(user._id, {
-      password: hashedPassword,
+      password: newPassword,
       updated_at: new Date()
     });
 

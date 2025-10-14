@@ -1,13 +1,13 @@
 const nodemailer = require('nodemailer');
 
-// Email konfigürasyonu
+// Email konfigürasyonu - Doğru SMTP ayarları
 const emailConfig = {
-  host: 'mail.chatnow.com.tr', // cPanel email host
-  port: 465, // SSL port
-  secure: true, // SSL kullan
+  host: 'srvc03.trwww.com', // Doğru SMTP host
+  port: 587, // TLS port
+  secure: false, // TLS kullan
   auth: {
-    user: 'noreply@chatnow.com.tr', // Email adresi
-    pass: process.env.EMAIL_PASSWORD || 'your-email-password' // Email şifresi
+    user: 'repass@chatnow.com.tr', // Email adresi
+    pass: 'chatnowchat' // Email şifresi
   },
   tls: {
     rejectUnauthorized: false // Self-signed sertifika için
@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport(emailConfig);
 const sendEmail = async (to, subject, html) => {
   try {
     const mailOptions = {
-      from: 'ChatNow <noreply@chatnow.com.tr>',
+      from: 'ChatNow <repass@chatnow.com.tr>',
       to: to,
       subject: subject,
       html: html
@@ -38,7 +38,7 @@ const sendEmail = async (to, subject, html) => {
 
 // Şifre sıfırlama emaili gönder
 const sendPasswordResetEmail = async (email, resetToken) => {
-  const resetUrl = `https://chatnow.com.tr/reset-password?token=${resetToken}`;
+  const resetUrl = `https://chatnow.com.tr/reset-password.html?token=${resetToken}`;
   
   const html = `
     <!DOCTYPE html>
