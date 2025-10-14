@@ -3,11 +3,14 @@ const nodemailer = require('nodemailer');
 // Email konfigürasyonu
 const emailConfig = {
   host: 'mail.chatnow.com.tr', // cPanel email host
-  port: 587, // SMTP port
-  secure: false, // TLS kullan
+  port: 465, // SSL port
+  secure: true, // SSL kullan
   auth: {
     user: 'noreply@chatnow.com.tr', // Email adresi
     pass: process.env.EMAIL_PASSWORD || 'your-email-password' // Email şifresi
+  },
+  tls: {
+    rejectUnauthorized: false // Self-signed sertifika için
   }
 };
 
