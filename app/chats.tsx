@@ -31,6 +31,10 @@ export default function Chats() {
     return chats; // Filtreleme kaldırıldı - engellenen kullanıcılar da görünsün
   }, [chats]);
 
+  // State tanımlamaları
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [blockingStatus, setBlockingStatus] = useState<{[key: string]: {isBlockedByMe: boolean, isBlockedByOther: boolean}}>({});
+
   // Chat item'larını memoize et
   const renderChatItem = useCallback(({ item: chat }: { item: any }) => {
     const isSelected = selectedChatId === chat.id;
@@ -115,10 +119,8 @@ export default function Chats() {
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
-  const [blockingStatus, setBlockingStatus] = useState<{[key: string]: {isBlockedByMe: boolean, isBlockedByOther: boolean}}>({});
   const [isLoadingBlockingStatus, setIsLoadingBlockingStatus] = useState(true);
   const [userGenders, setUserGenders] = useState<{[key: string]: string}>({});
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const menuScaleAnim = useRef(new Animated.Value(0.9)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -157,66 +159,30 @@ export default function Chats() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chats.length, authUser?.id]); // chats yerine chats.length - infinite loop önleme
 
-  // Real-time kullanıcı bilgileri güncelleme
-  useEffect(() => {
-    if (!authUser?.id || chats.length === 0) return;
-
-    const updateUserInfo = async () => {
-      for (const chat of chats) {
-        const parts = chat.id.split('_');
-        const otherUserId = parts[0] === authUser.id ? parts[1] : parts[0];
-        
-        try {
-          // Gerçek kullanıcı bilgilerini al
-          const userInfo = await getUserInfo(otherUserId, true);
-          if (userInfo) {
-            // Chat listesini güncelle
-            setChats(prevChats => 
-              prevChats.map(c => 
-                c.id === chat.id 
-                  ? {
-                      ...c,
-                      name: userInfo.name || c.name,
-                      avatar: userInfo.avatar || c.avatar,
-                      avatarImage: userInfo.avatarImage || c.avatarImage,
-                      bgColor: userInfo.bgColor || c.bgColor,
-                      gender: userInfo.gender || c.gender,
-                      otherUser: {
-                        ...c.otherUser,
-                        name: userInfo.name || c.otherUser?.name,
-                        avatar: userInfo.avatar || c.otherUser?.avatar,
-                        avatar_image: userInfo.avatarImage || c.otherUser?.avatar_image,
-                        bg_color: userInfo.bgColor || c.otherUser?.bg_color,
-                        gender: userInfo.gender || c.otherUser?.gender,
-                        is_online: userInfo.isOnline || false,
-                        last_active: userInfo.lastActive || c.otherUser?.last_active
-                      }
-                    }
-                  : c
-              )
-            );
-          }
-        } catch (error) {
-          // Hata durumunda sessizce devam et
-        }
-      }
-    };
-
-    // İlk yükleme
-    updateUserInfo();
-
-    // Periyodik güncelleme (her 30 saniyede bir)
-    const interval = setInterval(updateUserInfo, 30000);
-
-    return () => clearInterval(interval);
-  }, [authUser?.id, chats.length, getUserInfo]);
-
-  // WebSocket listener - Real-time mesaj güncellemeleri
+  // Real-time mesaj güncellemeleri
   useEffect(() => {
     if (!authUser?.id) return;
 
-    // WebSocket listeners artık ChatContext'te yönetiliyor
-  }, [authUser?.id, getChats, setChats]);
+    // WebSocket listener - yeni mesaj geldiğinde chat listesini güncelle
+    const handleNewMessage = (data: any) => {
+      if (data.senderId !== authUser.id) {
+        // Yeni mesaj geldi, chat listesini güncelle
+        getChats();
+      }
+    };
+
+    // WebSocket event listener'ları ekle
+    const webSocketService = require('../services/websocket').default;
+    if (webSocketService && webSocketService.on) {
+      webSocketService.on('new_message', handleNewMessage);
+    }
+
+    return () => {
+      if (webSocketService && webSocketService.off) {
+        webSocketService.off('new_message', handleNewMessage);
+      }
+    };
+  }, [authUser?.id, getChats]);
 
   // Gender bilgilerini çek
   useEffect(() => {
@@ -412,8 +378,6 @@ export default function Chats() {
               showsVerticalScrollIndicator={false}
               scrollEventThrottle={64}
               removeClippedSubviews={true}
-              maxToRenderPerBatch={10}
-              windowSize={10}
             >
               {filteredChats.length === 0 ? (
                 <View style={styles.emptyContainer}>
@@ -995,10 +959,12 @@ const styles = StyleSheet.create({
   avatarContainer: { position: 'relative', marginRight: 16 },
   avatar: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
   avatarEmoji: { fontSize: 24 },
+  avatarText: { fontSize: 24, color: '#ffffff' },
   avatarImage: { width: 50, height: 50, borderRadius: 25 },
   placeholderContainer: { alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', backgroundColor: '#e5e7eb', borderRadius: 25 },
   placeholderText: { fontSize: 8, color: '#6b7780', opacity: 0.6 },
   placeholderIcon: { fontSize: 20, color: '#6b7780', opacity: 0.8 },
+  statusIndicator: { position: 'absolute', bottom: 2, left: 2, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: '#1a1f2e' },
   onlineIndicator: { position: 'absolute', bottom: 2, left: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#00ff00', borderWidth: 2, borderColor: '#1a1f2e' },
   offlineIndicator: { position: 'absolute', bottom: 2, left: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#ff0000', borderWidth: 2, borderColor: '#1a1f2e' },
   chatInfo: { flex: 1 },

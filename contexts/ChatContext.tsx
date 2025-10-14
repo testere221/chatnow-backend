@@ -383,74 +383,72 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Mesaj gönderildikten sonra chat listesini güncelle
       const chatId = [currentUser.id, receiverId].sort().join('_');
-      setChats(prevChats => {
-        const existingChat = prevChats.find(chat => chat.id === chatId);
-        if (existingChat) {
-          // Mevcut chat'i güncelle
-          return prevChats.map(chat => 
-            chat.id === chatId 
+      const existingChatIndex = chats.findIndex(chat => chat.id === chatId);
+
+      if (existingChatIndex !== -1) {
+        // Update existing chat
+        setChats(prevChats =>
+          prevChats.map((chat, index) =>
+            index === existingChatIndex
               ? {
                   ...chat,
                   lastMessage: text || 'Resim',
                   lastTime: new Date()
                 }
               : chat
-          );
-        } else {
-          // Yeni chat oluştur - gerçek kullanıcı bilgilerini al
-          getUserInfo(receiverId).then(userInfo => {
-            const newChat: Chat = {
-              id: chatId,
-              user1Id: currentUser.id,
-              user2Id: receiverId,
-              lastMessage: text || 'Resim',
-              lastTime: new Date(),
-              unreadCount: 0,
+          )
+        );
+      } else {
+        // Create new chat
+        try {
+          const userInfo = await getUserInfo(receiverId);
+          const newChat: Chat = {
+            id: chatId,
+            user1Id: currentUser.id,
+            user2Id: receiverId,
+            lastMessage: text || 'Resim',
+            lastTime: new Date(),
+            unreadCount: 0, // Sender doesn't have unread messages for their own sent message
+            name: userInfo.name || 'Kullanıcı',
+            avatar: userInfo.avatar || '👤',
+            bgColor: userInfo.bgColor || '#FFB6C1',
+            gender: userInfo.gender || 'female',
+            otherUser: {
+              id: receiverId,
               name: userInfo.name || 'Kullanıcı',
               avatar: userInfo.avatar || '👤',
-              bgColor: userInfo.bgColor || '#FFB6C1',
+              bg_color: userInfo.bgColor || '#FFB6C1',
               gender: userInfo.gender || 'female',
-              otherUser: {
-                id: receiverId,
-                name: userInfo.name || 'Kullanıcı',
-                avatar: userInfo.avatar || '👤',
-                bg_color: userInfo.bgColor || '#FFB6C1',
-                gender: userInfo.gender || 'female',
-                is_online: userInfo.isOnline || false
-              }
-            };
-            
-            // Chat listesini güncelle
-            setChats(prevChats => [newChat, ...prevChats]);
-          }).catch(() => {
-            // Hata durumunda varsayılan değerler
-            const newChat: Chat = {
-              id: chatId,
-              user1Id: currentUser.id,
-              user2Id: receiverId,
-              lastMessage: text || 'Resim',
-              lastTime: new Date(),
-              unreadCount: 0,
+              is_online: userInfo.isOnline || false
+            }
+          };
+          setChats(prevChats => [newChat, ...prevChats]);
+        } catch (error) {
+          console.error('Error fetching user info for new chat in sendMessage:', error);
+          // Fallback for new chat if user info fetch fails
+          const newChat: Chat = {
+            id: chatId,
+            user1Id: currentUser.id,
+            user2Id: receiverId,
+            lastMessage: text || 'Resim',
+            lastTime: new Date(),
+            unreadCount: 0,
+            name: 'Kullanıcı',
+            avatar: '👤',
+            bgColor: '#FFB6C1',
+            gender: 'female',
+            otherUser: {
+              id: receiverId,
               name: 'Kullanıcı',
               avatar: '👤',
-              bgColor: '#FFB6C1',
+              bg_color: '#FFB6C1',
               gender: 'female',
-              otherUser: {
-                id: receiverId,
-                name: 'Kullanıcı',
-                avatar: '👤',
-                bg_color: '#FFB6C1',
-                gender: 'female',
-                is_online: false
-              }
-            };
-            setChats(prevChats => [newChat, ...prevChats]);
-          });
-          
-          // Geçici olarak varsayılan chat döndür (async işlem tamamlanana kadar)
-          return prevChats;
+              is_online: false
+            }
+          };
+          setChats(prevChats => [newChat, ...prevChats]);
         }
-      });
+      }
       
       // Response'dan güncel jeton sayısını al
       if (response && (response as any).user && (response as any).user.diamonds !== undefined) {
@@ -491,7 +489,28 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Chat'i sil (eski sistem uyumluluğu için)
   const deleteChat = async (chatId: string) => {
-    // Bu fonksiyon artık gerekli değil
+    try {
+      // API'den chat'i sil
+      await ApiService.deleteChat(chatId);
+      
+      // Local state'den chat'i kaldır
+      setChats(prevChats => prevChats.filter(chat => chat.id !== chatId));
+      
+      // Count'u da temizle
+      setUnreadCounts(prevCounts => {
+        const newCounts = { ...prevCounts };
+        delete newCounts[chatId];
+        
+        // Toplam count'ı hesapla ve badge'i güncelle
+        const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
+        updateBadgeCount(totalCount);
+        
+        return newCounts;
+      });
+      
+    } catch (error) {
+      throw error;
+    }
   };
 
   // Mesajları temizle (eski sistem uyumluluğu için)
@@ -539,7 +558,28 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // TODO: API'den mesaj silme fonksiyonu eklenmeli
       
       // Local state'i güncelle
+      const deletedMessage = messages.find(msg => msg.id === messageId);
       setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      
+      // Eğer silinen mesaj okunmamışsa count'u düşür
+      if (deletedMessage && !deletedMessage.read) {
+        const chatId = [currentUser.id, deletedMessage.senderId].sort().join('_');
+        setUnreadCounts(prevCounts => {
+          const newCounts = { ...prevCounts };
+          if (newCounts[chatId] && newCounts[chatId] > 0) {
+            newCounts[chatId] = newCounts[chatId] - 1;
+            if (newCounts[chatId] === 0) {
+              delete newCounts[chatId];
+            }
+          }
+          
+          // Toplam count'ı hesapla ve badge'i güncelle
+          const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
+          updateBadgeCount(totalCount);
+          
+          return newCounts;
+        });
+      }
       
     } catch (error) {
       throw error;
@@ -563,6 +603,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const newCounts = { ...prevCounts };
         delete newCounts[chatId];
         
+        console.log('✅ Messages marked as read for chat:', chatId, 'count cleared');
+        
         // Toplam count'ı hesapla ve badge'i güncelle
         const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
         updateBadgeCount(totalCount);
@@ -571,7 +613,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
     } catch (error) {
-      // Error marking messages as read
+      console.error('❌ Error marking messages as read:', error);
     }
   };
 
@@ -785,6 +827,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   ...chat,
                   otherUser: {
                     ...chat.otherUser,
+                    id: chat.otherUser?.id || otherUserId,
+                    name: chat.otherUser?.name || 'Kullanıcı',
                     is_online: data.isOnline
                   }
                 };
@@ -793,25 +837,136 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             })
           );
         };
+
+        // Listen for new messages to update chat list
+        const handleNewMessageForChatList = (data: any) => {
+          console.log('🔔 New message received:', data);
+          if (data.message?.senderId !== currentUser?.id) {
+            // Eğer yeni chat oluşuyorsa, hemen ekle
+            const chatId = [currentUser?.id, data.message?.senderId].sort().join('_');
+            const existingChat = chats.find(chat => chat.id === chatId);
+            
+            if (!existingChat) {
+              console.log('🆕 Creating new chat for:', data.message?.senderId);
+              // Yeni chat oluştur - gerçek kullanıcı bilgilerini al
+              getUserInfo(data.message?.senderId).then(userInfo => {
+                const newChat: Chat = {
+                  id: chatId,
+                  user1Id: currentUser?.id || '',
+                  user2Id: data.message?.senderId,
+                  lastMessage: data.message?.text || 'Resim',
+                  lastTime: new Date(data.message?.timestamp || Date.now()),
+                  unreadCount: 1,
+                  name: userInfo.name || 'Kullanıcı',
+                  avatar: userInfo.avatar || '👤',
+                  bgColor: userInfo.bgColor || '#FFB6C1',
+                  gender: userInfo.gender || 'female',
+                  otherUser: {
+                    id: data.message?.senderId,
+                    name: userInfo.name || 'Kullanıcı',
+                    avatar: userInfo.avatar || '👤',
+                    bg_color: userInfo.bgColor || '#FFB6C1',
+                    gender: userInfo.gender || 'female',
+                    is_online: userInfo.isOnline || false
+                  }
+                };
+                
+                // Chat listesini güncelle
+                setChats(prevChats => [newChat, ...prevChats]);
+                
+                // Count'u güncelle
+                setUnreadCounts(prevCounts => {
+                  const newCounts = {
+                    ...prevCounts,
+                    [chatId]: 1
+                  };
+                  
+                  // Toplam count'ı hesapla ve badge'i güncelle
+                  const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
+                  updateBadgeCount(totalCount);
+                  
+                  return newCounts;
+                });
+              }).catch(() => {
+                // Hata durumunda varsayılan değerler
+                const newChat: Chat = {
+                  id: chatId,
+                  user1Id: currentUser?.id || '',
+                  user2Id: data.message?.senderId,
+                  lastMessage: data.message?.text || 'Resim',
+                  lastTime: new Date(data.message?.timestamp || Date.now()),
+                  unreadCount: 1,
+                  name: 'Kullanıcı',
+                  avatar: '👤',
+                  bgColor: '#FFB6C1',
+                  gender: 'female',
+                  otherUser: {
+                    id: data.message?.senderId,
+                    name: 'Kullanıcı',
+                    avatar: '👤',
+                    bg_color: '#FFB6C1',
+                    gender: 'female',
+                    is_online: false
+                  }
+                };
+                
+                setChats(prevChats => [newChat, ...prevChats]);
+                
+                // Count'u güncelle
+                setUnreadCounts(prevCounts => {
+                  const newCounts = {
+                    ...prevCounts,
+                    [chatId]: 1
+                  };
+                  
+                  // Toplam count'ı hesapla ve badge'i güncelle
+                  const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
+                  updateBadgeCount(totalCount);
+                  
+                  return newCounts;
+                });
+              });
+            } else {
+              // Mevcut chat'in lastMessage ve lastTime'ını güncelle
+              setChats(prevChats =>
+                prevChats.map(chat =>
+                  chat.id === chatId
+                    ? {
+                        ...chat,
+                        lastMessage: data.message?.text || 'Resim',
+                        lastTime: new Date(data.message?.timestamp || Date.now()),
+                        unreadCount: chat.unreadCount + 1 // Okunmamış mesaj sayısını artır
+                      }
+                    : chat
+                )
+              );
+              
+              // Count'u güncelle - SADECE 1 ARTIR
+              setUnreadCounts(prevCounts => {
+                const newCounts = {
+                  ...prevCounts,
+                  [chatId]: (prevCounts[chatId] || 0) + 1
+                };
+                
+                console.log('📊 Count updated for chat:', chatId, 'new count:', newCounts[chatId]);
+                
+                // Toplam count'ı hesapla ve badge'i güncelle
+                const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
+                updateBadgeCount(totalCount);
+                
+                return newCounts;
+              });
+            }
+          }
+        };
         
         // Mesaj geldiğinde hem count hem chat listesini güncelle
         const handleNewMessage = (data: { chatId: string; message: any }) => {
           // Sadece bize gelen mesajlar için işlem yap
           if (data.message.receiverId === currentUser?.id) {
-            // Count'u artır
-            setUnreadCounts(prevCounts => {
-              const newCounts = {
-                ...prevCounts,
-                [data.chatId]: (prevCounts[data.chatId] || 0) + 1
-              };
-              
-              // Toplam count'ı hesapla ve badge'i güncelle
-              const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
-              updateBadgeCount(totalCount);
-              
-              return newCounts;
-            });
-
+            console.log('📨 handleNewMessage - Count will be updated by handleNewMessageForChatList');
+            // Count güncellemesi handleNewMessageForChatList'te yapılıyor, burada duplicate olmasın
+            
             // Chat listesini güncelle
             setChats(prevChats => {
               const updatedChats = prevChats.map(chat => {
@@ -836,6 +991,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setChats(prevChats => {
               const filteredChats = prevChats.filter(chat => chat.id !== data.chatId);
               return filteredChats;
+            });
+            
+            // Count'u da temizle
+            setUnreadCounts(prevCounts => {
+              const newCounts = { ...prevCounts };
+              delete newCounts[data.chatId];
+              
+              // Toplam count'ı hesapla ve badge'i güncelle
+              const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
+              updateBadgeCount(totalCount);
+              
+              return newCounts;
             });
           }
         };
@@ -869,6 +1036,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         webSocketService.on('messageForCount', handleNewMessage);
         webSocketService.on('messageSent', handleMessageSent);
         webSocketService.on('chat_deleted', handleChatDeleted);
+        webSocketService.on('newMessage', handleNewMessageForChatList);
+        
+        console.log('🔌 WebSocket listeners registered');
 
         // Engellenen kullanıcıları yükle
         await loadBlockedUsers();
@@ -881,6 +1051,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           webSocketService.off('messageForCount', handleNewMessage);
           webSocketService.off('messageSent', handleMessageSent);
           webSocketService.off('chat_deleted', handleChatDeleted);
+          webSocketService.off('newMessage', handleNewMessageForChatList);
         };
       } catch (error) {
         // Error setting up listeners
