@@ -5,6 +5,7 @@ import { Animated, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { NavigationHelper } from '../../utils/NavigationHelper';
+import { router } from 'expo-router';
 
 function CNBubble() {
   return (
@@ -159,7 +160,10 @@ export default function Login() {
                 <Text style={styles.primaryBtnTxt}>{isLoading ? 'Giriş yapılıyor…' : 'Giriş Yap'}</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.linkRow}>
+              <TouchableOpacity 
+                style={styles.linkRow}
+                onPress={() => router.push('/auth/forgot-password')}
+              >
                 <Text style={styles.link}>Şifremi unuttum</Text>
               </TouchableOpacity>
             </View>

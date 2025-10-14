@@ -16,6 +16,9 @@ const Message = require('./models/Message');
 const Chat = require('./models/Chat');
 const Block = require('./models/Block');
 
+// Services
+const { sendPasswordResetEmail } = require('./services/emailService');
+
 // Test data generators
 const generateRandomUser = () => {
   const names = [
@@ -1964,6 +1967,131 @@ app.post('/api/notifications/send', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('❌ Push notification send error:', error);
     res.status(500).json({ message: 'Bildirim gönderilirken hata oluştu', error: error.message });
+  }
+});
+
+// Şifre sıfırlama token'ı oluştur
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email adresi gerekli.' });
+    }
+
+    // Kullanıcıyı bul
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'Bu email adresi ile kayıtlı kullanıcı bulunamadı.' });
+    }
+
+    // Reset token oluştur (24 saat geçerli)
+    const resetToken = jwt.sign(
+      { userId: user._id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Email gönder
+    const emailResult = await sendPasswordResetEmail(email, resetToken);
+    
+    if (emailResult.success) {
+      res.json({ 
+        message: 'Şifre sıfırlama linki email adresinize gönderildi.',
+        success: true 
+      });
+    } else {
+      res.status(500).json({ 
+        message: 'Email gönderilemedi. Lütfen daha sonra tekrar deneyin.',
+        error: emailResult.error 
+      });
+    }
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Şifre sıfırlama işlemi sırasında hata oluştu.', error: error.message });
+  }
+});
+
+// Şifre sıfırlama token'ını doğrula
+app.post('/api/auth/verify-reset-token', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: 'Token gerekli.' });
+    }
+
+    // Token'ı doğrula
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Kullanıcıyı bul
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+    }
+
+    res.json({ 
+      message: 'Token geçerli.',
+      userId: user._id,
+      email: user.email,
+      valid: true 
+    });
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(400).json({ message: 'Token süresi dolmuş. Lütfen yeni bir şifre sıfırlama talebinde bulunun.' });
+    } else if (error.name === 'JsonWebTokenError') {
+      return res.status(400).json({ message: 'Geçersiz token.' });
+    } else {
+      console.error('Verify reset token error:', error);
+      res.status(500).json({ message: 'Token doğrulama sırasında hata oluştu.', error: error.message });
+    }
+  }
+});
+
+// Yeni şifre belirle
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'Token ve yeni şifre gerekli.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Şifre en az 6 karakter olmalıdır.' });
+    }
+
+    // Token'ı doğrula
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Kullanıcıyı bul
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+    }
+
+    // Yeni şifreyi hash'le
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Şifreyi güncelle
+    await User.findByIdAndUpdate(user._id, {
+      password: hashedPassword,
+      updated_at: new Date()
+    });
+
+    res.json({ 
+      message: 'Şifreniz başarıyla güncellendi.',
+      success: true 
+    });
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(400).json({ message: 'Token süresi dolmuş. Lütfen yeni bir şifre sıfırlama talebinde bulunun.' });
+    } else if (error.name === 'JsonWebTokenError') {
+      return res.status(400).json({ message: 'Geçersiz token.' });
+    } else {
+      console.error('Reset password error:', error);
+      res.status(500).json({ message: 'Şifre güncellenirken hata oluştu.', error: error.message });
+    }
   }
 });
 

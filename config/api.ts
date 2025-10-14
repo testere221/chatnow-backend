@@ -38,6 +38,9 @@ export const API_CONFIG = {
     AUTH: {
       REGISTER: '/api/auth/register',
       LOGIN: '/api/auth/login',
+      FORGOT_PASSWORD: '/api/auth/forgot-password',
+      VERIFY_RESET_TOKEN: '/api/auth/verify-reset-token',
+      RESET_PASSWORD: '/api/auth/reset-password',
     },
     USERS: {
       LIST: '/api/users',
