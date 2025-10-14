@@ -3,8 +3,8 @@ const nodemailer = require('nodemailer');
 // Email konfigürasyonu - Environment variables kullan
 const emailConfig = {
   host: process.env.SMTP_HOST || 'srvc03.trwww.com',
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false, // TLS kullan
+  port: parseInt(process.env.SMTP_PORT) || 465,
+  secure: true, // SSL kullan (Port 465 için)
   auth: {
     user: process.env.SMTP_USER || 'repass@chatnow.com.tr',
     pass: process.env.SMTP_PASS || 'chatnowchat'
