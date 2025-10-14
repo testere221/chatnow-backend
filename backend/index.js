@@ -84,7 +84,7 @@ const io = socketIo(server, {
 });
 
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = 'chatnow-super-secret-jwt-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET || 'chatnow-super-secret-jwt-key-2024';
 
 // Multer configuration for image uploads
 const storage = multer.diskStorage({
@@ -184,9 +184,9 @@ app.post('/api/upload/image', authenticateToken, upload.single('image'), async (
   }
 });
 
-// MongoDB bağlantısı - Direct connection (DNS bypass)
-const MONGODB_URI = 'mongodb://ferhatkortak1:3jjh%25FfNdwK%21%21@ac-xeugihl-shard-00-00.ja5wqma.mongodb.net:27017,ac-xeugihl-shard-00-01.ja5wqma.mongodb.net:27017,ac-xeugihl-shard-00-02.ja5wqma.mongodb.net:27017/chatnow?ssl=true&replicaSet=atlas-xs46p5-shard-0&authSource=admin&retryWrites=true&w=majority';
-// console.log('🔗 MongoDB URI:', MONGODB_URI);
+// MongoDB bağlantısı - Environment variable kullan
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://ferhatkortak1:3jjh%25FfNdwK%21%21@ac-xeugihl-shard-00-00.ja5wqma.mongodb.net:27017,ac-xeugihl-shard-00-01.ja5wqma.mongodb.net:27017,ac-xeugihl-shard-00-02.ja5wqma.mongodb.net:27017/chatnow?ssl=true&replicaSet=atlas-xs46p5-shard-0&authSource=admin&retryWrites=true&w=majority';
+console.log('🔗 MongoDB URI:', MONGODB_URI ? 'Connected' : 'Not set');
 
 mongoose.connect(MONGODB_URI, {
   maxPoolSize: 10, // Maksimum bağlantı sayısı
