@@ -76,8 +76,9 @@ echo ========================================
 echo.
 echo Backend degisiklikleri GitHub'a push ediliyor...
 git add backend/
-git commit -m "Backend update: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-git push origin master
+git add update-icon.bat
+git commit -m "Backend update: %date% %time%"
+git push --force origin master
 if %errorlevel% neq 0 (
     echo Git push hatasi! Program kapaniyor...
     pause
@@ -102,8 +103,9 @@ echo ========================================
 echo.
 echo 1. Backend degisiklikleri push ediliyor...
 git add backend/
-git commit -m "Full update: Frontend + Backend $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-git push origin master
+git add update-icon.bat
+git commit -m "Full update: Frontend + Backend %date% %time%"
+git push --force origin master
 if %errorlevel% neq 0 (
     echo Git push hatasi! Program kapaniyor...
     pause
