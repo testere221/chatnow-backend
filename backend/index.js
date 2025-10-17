@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -112,7 +113,17 @@ const upload = multer({
 });
 
 // Middleware
-app.use(helmet()); // Güvenlik headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+})); // Güvenlik headers
 app.use(compression()); // Gzip sıkıştırma
 app.use(cors({
   origin: '*',
@@ -125,6 +136,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files serving for uploaded images
 app.use('/uploads', express.static('uploads')); // URL encoded limit
+
+// Static files serving for HTML pages
+app.use(express.static('.'));
 
 // Handle preflight requests
 app.options('*', cors());
@@ -2099,6 +2113,107 @@ app.post('/api/auth/reset-password', async (req, res) => {
       console.error('Reset password error:', error);
       res.status(500).json({ message: 'Şifre güncellenirken hata oluştu.', error: error.message });
     }
+  }
+});
+
+// Hesap silme (Web)
+app.post('/api/auth/delete-account-web', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email ve şifre gerekli.' });
+    }
+
+    // Kullanıcıyı bul ve şifreyi kontrol et
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+    }
+
+    // Şifre kontrolü (plain text karşılaştırma)
+    if (user.password !== password) {
+      return res.status(401).json({ message: 'Şifre yanlış.' });
+    }
+
+    const userId = user._id.toString();
+
+    // Kullanıcının tüm mesajlarını sil
+    await Message.deleteMany({
+      $or: [
+        { senderId: userId },
+        { receiverId: userId }
+      ]
+    });
+
+    // Kullanıcının tüm chat'lerini sil
+    await Chat.deleteMany({
+      $or: [
+        { user1Id: userId },
+        { user2Id: userId }
+      ]
+    });
+
+    // Kullanıcının tüm block kayıtlarını sil
+    await Block.deleteMany({
+      $or: [
+        { userId: userId },
+        { blockedUserId: userId }
+      ]
+    });
+
+    // Kullanıcıyı sil
+    await User.findByIdAndDelete(userId);
+
+    res.json({ 
+      message: 'Hesabınız başarıyla silindi.',
+      success: true 
+    });
+  } catch (error) {
+    console.error('Delete account web error:', error);
+    res.status(500).json({ message: 'Hesap silinirken hata oluştu.', error: error.message });
+  }
+});
+
+// Hesap silme
+app.delete('/api/auth/delete-account', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Kullanıcının tüm mesajlarını sil
+    await Message.deleteMany({
+      $or: [
+        { senderId: userId },
+        { receiverId: userId }
+      ]
+    });
+
+    // Kullanıcının tüm chat'lerini sil
+    await Chat.deleteMany({
+      $or: [
+        { user1Id: userId },
+        { user2Id: userId }
+      ]
+    });
+
+    // Kullanıcının tüm block kayıtlarını sil
+    await Block.deleteMany({
+      $or: [
+        { userId: userId },
+        { blockedUserId: userId }
+      ]
+    });
+
+    // Kullanıcıyı sil
+    await User.findByIdAndDelete(userId);
+
+    res.json({ 
+      message: 'Hesabınız başarıyla silindi.',
+      success: true 
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ message: 'Hesap silinirken hata oluştu.', error: error.message });
   }
 });
 

@@ -8,13 +8,15 @@ echo 1 - Sadece Frontend (APK olustur)
 echo 2 - Sadece Backend (Git push + Deploy)
 echo 3 - Her ikisi de (Frontend + Backend)
 echo 4 - Sadece Icon degistirdim
+echo 5 - AAB (App Bundle) olustur
 echo.
-set /p update_choice="Seciminiz (1/2/3/4): "
+set /p update_choice="Seciminiz (1/2/3/4/5): "
 
 if /i "%update_choice%"=="1" goto frontend_only
 if /i "%update_choice%"=="2" goto backend_only
 if /i "%update_choice%"=="3" goto both_update
 if /i "%update_choice%"=="4" goto icon_only
+if /i "%update_choice%"=="5" goto aab_only
 echo Gecersiz secim! Program kapaniyor...
 pause
 exit /b 1
@@ -66,6 +68,30 @@ if /i "%choice%"=="E" (
     echo.
     echo Gecersiz secim! Program kapaniyor...
 )
+goto end
+
+:aab_only
+echo.
+echo ========================================
+echo    AAB (APP BUNDLE) OLUSTURMA
+echo ========================================
+echo.
+echo AAB olusturuluyor...
+cd android
+call gradlew.bat bundleRelease
+cd ..
+if %errorlevel% neq 0 (
+    echo AAB olusturma hatasi! Program kapaniyor...
+    pause
+    exit /b 1
+)
+echo.
+echo ========================================
+echo AAB basariyla olusturuldu!
+echo ========================================
+echo.
+echo AAB konumu: android\app\build\outputs\bundle\release\app-release.aab
+echo Bu dosyayi Google Play Console'a yukleyebilirsiniz.
 goto end
 
 :backend_only
