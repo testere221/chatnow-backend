@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🔌 Simple WebSocket Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Backend Kontrol</h2>
+        <button onclick="testBackend()">Backend Test Et</button>
+        <div id="backendResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Socket.IO Test</h2>
+        <button onclick="testSocketIO()">Socket.IO Test Et</button>
+        <div id="socketResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Mesaj Gönderme Test</h2>
+        <button onclick="sendTestMessage()">Test Mesajı Gönder</button>
+        <div id="messageResult" class="result"></div>
+    </div>
+
+    <script>
+        let socket = null;
+
+        // Backend test
+        async function testBackend() {
+            try {
+                const response = await fetch('http://localhost:3000');
+                const data = await response.json();
+                document.getElementById('backendResult').innerHTML = 
+                    `<div class="success">✅ Backend Çalışıyor!</div>
+                     <pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('backendResult').innerHTML = 
+                    `<div class="error">❌ Backend Hatası: ${error.message}</div>`;
+            }
+        }
+
+        // Socket.IO test
+        function testSocketIO() {
+            try {
+                // Socket.IO client kontrolü
+                if (typeof io === 'undefined') {
+                    document.getElementById('socketResult').innerHTML = 
+                        `<div class="error">❌ Socket.IO client yüklenemedi!</div>`;
+                    return;
+                }
+
+                // Socket bağlantısı
+                socket = io('http://localhost:3000', {
+                    transports: ['websocket', 'polling'],
+                    timeout: 5000
+                });
+                
+                socket.on('connect', () => {
+                    document.getElementById('socketResult').innerHTML = 
+                        `<div class="success">✅ Socket.IO Bağlandı! ID: ${socket.id}</div>`;
+                });
+
+                socket.on('connect_error', (error) => {
+                    document.getElementById('socketResult').innerHTML = 
+                        `<div class="error">❌ Socket.IO Hatası: ${error.message}</div>`;
+                });
+
+                socket.on('disconnect', (reason) => {
+                    document.getElementById('socketResult').innerHTML += 
+                        `<div class="info">🔌 Bağlantı Kesildi: ${reason}</div>`;
+                });
+
+                // 5 saniye sonra bağlantı kontrolü
+                setTimeout(() => {
+                    if (!socket.connected) {
+                        document.getElementById('socketResult').innerHTML += 
+                            `<div class="error">❌ Bağlantı zaman aşımı!</div>`;
+                    }
+                }, 5000);
+
+            } catch (error) {
+                document.getElementById('socketResult').innerHTML = 
+                    `<div class="error">❌ Socket.IO Hatası: ${error.message}</div>`;
+            }
+        }
+
+        // Test mesajı gönderme
+        function sendTestMessage() {
+            if (!socket || !socket.connected) {
+                document.getElementById('messageResult').innerHTML = 
+                    `<div class="error">❌ Önce Socket.IO bağlantısı kurun!</div>`;
+                return;
+            }
+
+            try {
+                socket.emit('sendMessage', {
+                    senderId: 'test-sender',
+                    receiverId: 'test-receiver',
+                    text: 'Test mesajı!'
+                });
+
+                document.getElementById('messageResult').innerHTML = 
+                    `<div class="success">✅ Test mesajı gönderildi!</div>`;
+
+            } catch (error) {
+                document.getElementById('messageResult').innerHTML = 
+                    `<div class="error">❌ Mesaj gönderme hatası: ${error.message}</div>`;
+            }
+        }
+
+        // Sayfa yüklendiğinde backend testini çalıştır
+        window.onload = function() {
+            testBackend();
+        };
+    </script>
+    
+    <!-- Socket.IO Client -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</body>
+</html>

@@ -1,27 +1,12 @@
 // Test kullanıcıları oluşturma scripti
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 
 // MongoDB bağlantısı
-const MONGODB_URI = 'mongodb+srv://ferhatkortak:ferhat123@cluster0.8qjqj.mongodb.net/chatnow?retryWrites=true&w=majority';
+const MONGODB_URI = 'mongodb://ferhatkortak1:3jjh%25FfNdwK%21%21@ac-xeugihl-shard-00-00.ja5wqma.mongodb.net:27017,ac-xeugihl-shard-00-01.ja5wqma.mongodb.net:27017,ac-xeugihl-shard-00-02.ja5wqma.mongodb.net:27017/chatnow?ssl=true&replicaSet=atlas-xs46p5-shard-0&authSource=admin&retryWrites=true&w=majority';
 
-// User model (backend/models/User.js'den)
-const userSchema = new mongoose.Schema({
-  name: String,
-  surname: String,
-  email: String,
-  password: String,
-  avatar: String,
-  avatarImage: String,
-  bgColor: String,
-  gender: String,
-  isOnline: Boolean,
-  lastActive: Date,
-  diamonds: Number,
-  createdAt: Date
-});
-
-const User = mongoose.model('User', userSchema);
+// Mevcut User modelini import et
+const User = require('./models/User');
 
 // Test kullanıcıları
 const testUsers = [
@@ -30,84 +15,96 @@ const testUsers = [
     surname: 'Yılmaz',
     email: 'ahmet@test.com',
     password: '123456',
+    age: 25,
+    location: 'İstanbul',
     avatar: '👨',
-    avatarImage: '',
-    bgColor: '#3B82F6',
+    avatar_image: 'https://chatnow-app.onrender.com/uploads/profile-ahmet.jpg',
+    bg_color: '#3B82F6',
     gender: 'male',
-    isOnline: true,
-    lastActive: new Date(),
+    is_online: true,
+    last_active: new Date(),
     diamonds: 150,
-    createdAt: new Date()
+    created_at: new Date()
   },
   {
     name: 'Ayşe',
     surname: 'Demir',
     email: 'ayse@test.com',
     password: '123456',
+    age: 23,
+    location: 'Ankara',
     avatar: '👩',
-    avatarImage: '',
-    bgColor: '#FF6B95',
+    avatar_image: 'https://chatnow-app.onrender.com/uploads/profile-ayse.jpg',
+    bg_color: '#FF6B95',
     gender: 'female',
-    isOnline: true,
-    lastActive: new Date(),
+    is_online: true,
+    last_active: new Date(),
     diamonds: 200,
-    createdAt: new Date()
+    created_at: new Date()
   },
   {
     name: 'Mehmet',
     surname: 'Kaya',
     email: 'mehmet@test.com',
     password: '123456',
+    age: 28,
+    location: 'İzmir',
     avatar: '👨‍💼',
-    avatarImage: '',
-    bgColor: '#10B981',
+    avatar_image: 'https://chatnow-app.onrender.com/uploads/profile-mehmet.jpg',
+    bg_color: '#10B981',
     gender: 'male',
-    isOnline: false,
-    lastActive: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 saat önce
+    is_online: false,
+    last_active: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 saat önce
     diamonds: 75,
-    createdAt: new Date()
+    created_at: new Date()
   },
   {
     name: 'Fatma',
     surname: 'Özkan',
     email: 'fatma@test.com',
     password: '123456',
+    age: 26,
+    location: 'Bursa',
     avatar: '👩‍🎓',
-    avatarImage: '',
-    bgColor: '#F59E0B',
+    avatar_image: 'https://chatnow-app.onrender.com/uploads/profile-fatma.jpg',
+    bg_color: '#F59E0B',
     gender: 'female',
-    isOnline: true,
-    lastActive: new Date(),
+    is_online: true,
+    last_active: new Date(),
     diamonds: 300,
-    createdAt: new Date()
+    created_at: new Date()
   },
   {
     name: 'Ali',
     surname: 'Çelik',
     email: 'ali@test.com',
     password: '123456',
+    age: 30,
+    location: 'Antalya',
     avatar: '👨‍🔧',
-    avatarImage: '',
-    bgColor: '#8B5CF6',
+    avatar_image: 'https://chatnow-app.onrender.com/uploads/profile-ali.jpg',
+    bg_color: '#8B5CF6',
     gender: 'male',
-    isOnline: false,
-    lastActive: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 gün önce
+    is_online: false,
+    last_active: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 gün önce
     diamonds: 50,
-    createdAt: new Date()
+    created_at: new Date()
   },
   {
     name: 'Zeynep',
     surname: 'Arslan',
     email: 'zeynep@test.com',
     password: '123456',
+    age: 24,
+    location: 'Adana',
     avatar: '👩‍💻',
-    avatarImage: '',
-    bgColor: '#EF4444',
+    avatar_image: 'https://chatnow-app.onrender.com/uploads/profile-zeynep.jpg',
+    bg_color: '#EF4444',
     gender: 'female',
-    isOnline: true,
-    lastActive: new Date(),
+    is_online: true,
+    last_active: new Date(),
     diamonds: 400,
-    createdAt: new Date()
+    created_at: new Date()
   }
 ];
 
@@ -132,7 +129,7 @@ async function createTestUsers() {
       });
       
       await user.save();
-      console.log(`✅ Kullanıcı oluşturuldu: ${userData.name} ${userData.surname} (${userData.email})`);
+      console.log(`✅ Kullanıcı oluşturuldu: ${userData.name} ${userData.surname} (${userData.email}) - ${userData.diamonds} 💎`);
     }
 
     console.log('\n🎉 Tüm test kullanıcıları başarıyla oluşturuldu!');

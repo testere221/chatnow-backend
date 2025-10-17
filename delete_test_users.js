@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const MONGODB_URI = 'mongodb://ferhatkortak1:3jjh%25FfNdwK%21%21@ac-xeugihl-shard-00-00.ja5wqma.mongodb.net:27017,ac-xeugihl-shard-00-01.ja5wqma.mongodb.net:27017,ac-xeugihl-shard-00-02.ja5wqma.mongodb.net:27017/chatnow?ssl=true&replicaSet=atlas-xs46p5-shard-0&authSource=admin&retryWrites=true&w=majority';
 
 // Mevcut User modelini import et
-const User = require('./backend/models/User');
+const User = require('./models/User');
 
 async function deleteTestUsers() {
   try {

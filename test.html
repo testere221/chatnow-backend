@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatNow Backend Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        input, textarea { padding: 8px; margin: 5px; width: 200px; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🚀 ChatNow Backend Test</h1>
+    
+    <!-- API Test -->
+    <div class="test-section">
+        <h2>📡 API Test</h2>
+        <button onclick="testAPI()">API Bağlantısını Test Et</button>
+        <div id="apiResult" class="result"></div>
+    </div>
+
+    <!-- WebSocket Test -->
+    <div class="test-section">
+        <h2>🔌 WebSocket Test</h2>
+        <button onclick="connectWebSocket()">WebSocket Bağlan</button>
+        <button onclick="disconnectWebSocket()">WebSocket Bağlantıyı Kes</button>
+        <div id="wsResult" class="result"></div>
+    </div>
+
+    <!-- User Registration Test -->
+    <div class="test-section">
+        <h2>👤 Kullanıcı Kaydı Test</h2>
+        <input type="email" id="regEmail" placeholder="E-posta" value="test@example.com">
+        <input type="password" id="regPassword" placeholder="Şifre" value="123456">
+        <input type="text" id="regName" placeholder="Ad" value="Test">
+        <input type="text" id="regSurname" placeholder="Soyad" value="User">
+        <input type="number" id="regAge" placeholder="Yaş" value="25">
+        <input type="text" id="regLocation" placeholder="Konum" value="İstanbul">
+        <select id="regGender">
+            <option value="male">Erkek</option>
+            <option value="female">Kadın</option>
+        </select>
+        <br>
+        <button onclick="registerUser()">Kullanıcı Kaydet</button>
+        <div id="regResult" class="result"></div>
+    </div>
+
+    <!-- User Login Test -->
+    <div class="test-section">
+        <h2>🔑 Kullanıcı Girişi Test</h2>
+        <input type="email" id="loginEmail" placeholder="E-posta" value="test@example.com">
+        <input type="password" id="loginPassword" placeholder="Şifre" value="123456">
+        <br>
+        <button onclick="loginUser()">Giriş Yap</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+
+    <!-- Message Test -->
+    <div class="test-section">
+        <h2>💬 Mesaj Test</h2>
+        <input type="text" id="receiverId" placeholder="Alıcı ID" value="">
+        <input type="text" id="messageText" placeholder="Mesaj" value="Merhaba!">
+        <br>
+        <button onclick="sendMessage()">Mesaj Gönder</button>
+        <div id="messageResult" class="result"></div>
+    </div>
+
+    <script>
+        let socket = null;
+        let authToken = null;
+
+        // API Test
+        async function testAPI() {
+            try {
+                const response = await fetch('http://localhost:3000');
+                const data = await response.json();
+                document.getElementById('apiResult').innerHTML = 
+                    `<div class="success">✅ API Çalışıyor!</div>
+                     <pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('apiResult').innerHTML = 
+                    `<div class="error">❌ API Hatası: ${error.message}</div>`;
+            }
+        }
+
+        // WebSocket Test
+        function connectWebSocket() {
+            try {
+                // Socket.IO client kontrolü
+                if (typeof io === 'undefined') {
+                    document.getElementById('wsResult').innerHTML = 
+                        `<div class="error">❌ Socket.IO client yüklenemedi. Sayfayı yenileyin.</div>`;
+                    return;
+                }
+
+                socket = io('http://localhost:3000');
+                
+                socket.on('connect', () => {
+                    document.getElementById('wsResult').innerHTML = 
+                        `<div class="success">✅ WebSocket Bağlandı! Socket ID: ${socket.id}</div>`;
+                });
+
+                socket.on('connect_error', (error) => {
+                    document.getElementById('wsResult').innerHTML = 
+                        `<div class="error">❌ WebSocket Bağlantı Hatası: ${error.message}</div>`;
+                });
+
+                socket.on('newMessage', (data) => {
+                    document.getElementById('wsResult').innerHTML += 
+                        `<div class="info">📨 Yeni Mesaj: ${JSON.stringify(data)}</div>`;
+                });
+
+                socket.on('disconnect', () => {
+                    document.getElementById('wsResult').innerHTML += 
+                        `<div class="error">❌ WebSocket Bağlantısı Kesildi</div>`;
+                });
+
+            } catch (error) {
+                document.getElementById('wsResult').innerHTML = 
+                    `<div class="error">❌ WebSocket Hatası: ${error.message}</div>`;
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                document.getElementById('wsResult').innerHTML += 
+                    `<div class="info">🔌 WebSocket Bağlantısı Kapatıldı</div>`;
+            }
+        }
+
+        // User Registration
+        async function registerUser() {
+            try {
+                const userData = {
+                    email: document.getElementById('regEmail').value,
+                    password: document.getElementById('regPassword').value,
+                    name: document.getElementById('regName').value,
+                    surname: document.getElementById('regSurname').value,
+                    age: parseInt(document.getElementById('regAge').value),
+                    location: document.getElementById('regLocation').value,
+                    gender: document.getElementById('regGender').value
+                };
+
+                const response = await fetch('http://localhost:3000/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    document.getElementById('regResult').innerHTML = 
+                        `<div class="success">✅ Kullanıcı Kaydedildi!</div>
+                         <pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    document.getElementById('regResult').innerHTML = 
+                        `<div class="error">❌ Kayıt Hatası: ${data.message}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('regResult').innerHTML = 
+                    `<div class="error">❌ Kayıt Hatası: ${error.message}</div>`;
+            }
+        }
+
+        // User Login
+        async function loginUser() {
+            try {
+                const loginData = {
+                    email: document.getElementById('loginEmail').value,
+                    password: document.getElementById('loginPassword').value
+                };
+
+                const response = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(loginData)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    document.getElementById('loginResult').innerHTML = 
+                        `<div class="success">✅ Giriş Başarılı!</div>
+                         <pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    document.getElementById('loginResult').innerHTML = 
+                        `<div class="error">❌ Giriş Hatası: ${data.message}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('loginResult').innerHTML = 
+                    `<div class="error">❌ Giriş Hatası: ${error.message}</div>`;
+            }
+        }
+
+        // Send Message
+        async function sendMessage() {
+            if (!authToken) {
+                document.getElementById('messageResult').innerHTML = 
+                    `<div class="error">❌ Önce giriş yapmalısınız!</div>`;
+                return;
+            }
+
+            try {
+                const messageData = {
+                    receiverId: document.getElementById('receiverId').value,
+                    text: document.getElementById('messageText').value
+                };
+
+                const response = await fetch('http://localhost:3000/api/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(messageData)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('messageResult').innerHTML = 
+                        `<div class="success">✅ Mesaj Gönderildi!</div>
+                         <pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    document.getElementById('messageResult').innerHTML = 
+                        `<div class="error">❌ Mesaj Hatası: ${data.message}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('messageResult').innerHTML = 
+                    `<div class="error">❌ Mesaj Hatası: ${error.message}</div>`;
+            }
+        }
+
+        // Sayfa yüklendiğinde API testini çalıştır
+        window.onload = function() {
+            testAPI();
+        };
+    </script>
+    
+    <!-- Socket.IO Client -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</body>
+</html>
