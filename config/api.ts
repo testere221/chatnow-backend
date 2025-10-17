@@ -26,8 +26,8 @@ interface MessagesResponse {
 // API Configuration
 export const API_CONFIG = {
   // Railway Production URLs
-  BASE_URL: 'https://chatnow-app-production.up.railway.app',
-  WEBSOCKET_URL: 'https://chatnow-app-production.up.railway.app',
+  BASE_URL: 'https://observant-wisdom-production-ee9f.up.railway.app',
+  WEBSOCKET_URL: 'https://observant-wisdom-production-ee9f.up.railway.app',
   
   
 
