@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useMemo, useState } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CountBadge from '../../components/CountBadge';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
@@ -27,6 +27,31 @@ export default function OwnProfile() {
     resetChatData();
     await logout();
     NavigationHelper.goToLogin();
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Hesabını Sil',
+      'Hesabınızı silmek için web sitesine yönlendirileceksiniz. Orada email ve şifrenizi girerek hesabınızı silebilirsiniz.',
+      [
+        {
+          text: 'İptal',
+          style: 'cancel',
+        },
+        {
+          text: 'Web Sitesine Git',
+          style: 'destructive',
+          onPress: () => {
+            // Web sitesine yönlendir
+            const webUrl = 'https://chatnow.com.tr/delete-account.html';
+            Linking.openURL(webUrl).catch(err => {
+              console.error('Web sitesi açılamadı:', err);
+              Alert.alert('Hata', 'Web sitesi açılamadı. Lütfen tarayıcınızdan manuel olarak gidin.');
+            });
+          },
+        },
+      ]
+    );
   };
 
   const handleSwipeLeft = useCallback(() => NavigationHelper.goHome(), []);
@@ -164,6 +189,19 @@ export default function OwnProfile() {
                   </View>
                   <View style={styles.rowTextWrap}>
                     <Text style={[styles.rowTitle, { color: '#EF4444' }]}>Çıkış Yap</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.row} onPress={handleDeleteAccount}>
+                <View style={styles.rowLeft}>
+                  <View style={[styles.rowIcon, { backgroundColor: '#fef2f2' }]}>
+                    <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                  </View>
+                  <View style={styles.rowTextWrap}>
+                    <Text style={[styles.rowTitle, { color: '#DC2626' }]}>Hesabımı Sil</Text>
+                    <Text style={styles.rowSub}>Hesabınızı kalıcı olarak silin</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />

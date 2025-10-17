@@ -27,10 +27,8 @@ echo ========================================
 echo    FRONTEND GUNCELLEMESI
 echo ========================================
 echo.
-echo APK olusturuluyor...
-cd android
-call gradlew.bat assembleRelease
-cd ..
+echo 1. APK olusturuluyor...
+npx expo run:android --variant release
 if %errorlevel% neq 0 (
     echo APK olusturma hatasi! Program kapaniyor...
     pause

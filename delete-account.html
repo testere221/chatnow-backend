@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hesabımı Sil - ChatNow</title>
+    <meta name="description" content="ChatNow hesabınızı güvenli bir şekilde silin. Tüm verileriniz kalıcı olarak silinecektir.">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <style>
+        /* Hesap Silme Sayfası Özel Stilleri */
+        .delete-account-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 100px 20px 20px;
+        }
+
+        .delete-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .delete-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .delete-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .delete-logo img {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+        }
+
+        .delete-logo h1 {
+            color: #ff5f90;
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .delete-subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .warning-box {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .warning-icon {
+            color: #dc2626;
+            font-size: 24px;
+            margin-right: 12px;
+            margin-top: 2px;
+        }
+
+        .warning-content h3 {
+            color: #dc2626;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .warning-content p {
+            color: #991b1b;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #374151;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #ff5f90;
+            box-shadow: 0 0 0 3px rgba(255, 95, 144, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+            font-family: 'Inter', sans-serif;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: white;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .message {
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 50%;
+            border-top-color: #ff5f90;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back-link a {
+            color: #6b7280;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .back-link a:hover {
+            color: #ff5f90;
+        }
+
+        .success-state {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .success-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            color: #065f46;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #374151;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .delete-container {
+                padding: 30px 20px;
+                margin: 20px;
+            }
+            
+            .delete-logo h1 {
+                font-size: 24px;
+            }
+            
+            .warning-box {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="nav">
+                <div class="logo">
+                    <img src="images/logo.png" alt="ChatNow Logo" class="logo-img">
+                    <h1>ChatNow</h1>
+                </div>
+                <nav class="nav-menu">
+                    <a href="index.html">Ana Sayfa</a>
+                    <a href="contact.html">İletişim</a>
+                    <a href="support.html">Destek</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Delete Account Page -->
+    <section class="delete-account-page">
+        <div class="delete-container">
+            <div class="delete-header">
+                <div class="delete-logo">
+                    <img src="images/logo.png" alt="ChatNow Logo">
+                    <h1>ChatNow</h1>
+                </div>
+                <p class="delete-subtitle">Hesabınızı Silin</p>
+            </div>
+
+            <div class="warning-box">
+                <div class="warning-icon">⚠️</div>
+                <div class="warning-content">
+                    <h3>Dikkat!</h3>
+                    <p>Bu işlem geri alınamaz! Tüm mesajlarınız, chat'leriniz, profil bilgileriniz ve hesap verileriniz kalıcı olarak silinecektir. Bu işlemden sonra hesabınıza tekrar giriş yapamayacaksınız.</p>
+                </div>
+            </div>
+
+            <div id="message"></div>
+
+            <form id="deleteForm">
+                <div class="form-group">
+                    <label for="email">Email Adresiniz</label>
+                    <input type="email" id="email" name="email" required placeholder="ornek@email.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Şifreniz</label>
+                    <input type="password" id="password" name="password" required placeholder="Şifrenizi girin">
+                </div>
+
+                <button type="submit" class="btn btn-danger" id="deleteBtn">
+                    🗑️ Hesabımı Kalıcı Olarak Sil
+                </button>
+
+                <button type="button" class="btn btn-secondary" onclick="goBack()">
+                    ← İptal Et ve Geri Dön
+                </button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                Hesap siliniyor, lütfen bekleyin...
+            </div>
+
+            <div class="back-link">
+                <a href="index.html">← Ana Sayfaya Dön</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-logo">
+                        <img src="images/logo.png" alt="ChatNow Logo" class="footer-logo-img">
+                        <h3>ChatNow</h3>
+                    </div>
+                    <p>Güvenli mesajlaşma uygulaması</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Linkler</h4>
+                    <ul>
+                        <li><a href="privacy.html">Gizlilik Politikası</a></li>
+                        <li><a href="terms.html">Kullanım Şartları</a></li>
+                        <li><a href="contact.html">İletişim</a></li>
+                        <li><a href="support.html">Destek</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>İletişim</h4>
+                    <p>📧 chatnowbussines@gmail.com</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 ChatNow. Tüm hakları saklıdır.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const form = document.getElementById('deleteForm');
+        const messageDiv = document.getElementById('message');
+        const loadingDiv = document.getElementById('loading');
+        const deleteBtn = document.getElementById('deleteBtn');
+
+        function showMessage(text, type) {
+            messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
+            messageDiv.style.display = 'block';
+        }
+
+        function showLoading(show) {
+            loadingDiv.style.display = show ? 'block' : 'none';
+            deleteBtn.disabled = show;
+            form.style.display = show ? 'none' : 'block';
+        }
+
+        function showSuccess() {
+            form.style.display = 'none';
+            deleteBtn.style.display = 'none';
+            
+            const successHtml = `
+                <div class="success-state">
+                    <div class="success-icon">✅</div>
+                    <h2 class="success-title">Hesabınız Başarıyla Silindi</h2>
+                    <p class="success-message">
+                        Hesabınız ve tüm verileriniz kalıcı olarak silindi. 
+                        Artık bu hesap ile giriş yapamayacaksınız.
+                    </p>
+                </div>
+            `;
+            
+            document.querySelector('.delete-container').innerHTML = `
+                <div class="delete-header">
+                    <div class="delete-logo">
+                        <img src="images/logo.png" alt="ChatNow Logo">
+                        <h1>ChatNow</h1>
+                    </div>
+                </div>
+                ${successHtml}
+                <div class="back-link">
+                    <a href="index.html">← Ana Sayfaya Dön</a>
+                </div>
+            `;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showMessage('❌ Lütfen tüm alanları doldurun.', 'error');
+                return;
+            }
+
+            showLoading(true);
+            messageDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/auth/delete-account-web', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess();
+                } else {
+                    showMessage(`❌ ${data.message || 'Hesap silinirken hata oluştu.'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.', 'error');
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+</html>
