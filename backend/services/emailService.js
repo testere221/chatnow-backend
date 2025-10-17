@@ -1,7 +1,7 @@
 const sgMail = require('@sendgrid/mail');
 
 // SendGrid API Key'i environment variable'dan al
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'process.env.SENDGRID_API_KEY');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // Genel e‑posta gönderim fonksiyonu
 const sendEmail = async (to, subject, html) => {
