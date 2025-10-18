@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { ApiService } from '../config/api';
 import { webSocketService } from '../services/websocket';
@@ -149,6 +149,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Count sistemi state'i
   const [unreadCounts, setUnreadCounts] = useState<{ [chatId: string]: number }>({});
+  
+  // Processed messages için Set
+  const processedMessagesRef = useRef<Set<string>>(new Set());
 
   // Toplam okunmamış mesaj sayısını hesapla
   const getTotalUnreadCount = useCallback(() => {
@@ -842,8 +845,19 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const handleNewMessageForChatList = (data: any) => {
           console.log('🔔 New message received:', data);
           if (data.message?.senderId !== currentUser?.id) {
+            // Duplicate mesaj kontrolü
+            const messageId = data.message?.id;
+            if (!messageId) return;
+            
+            // Bu mesaj daha önce işlendi mi kontrol et
+            if (processedMessagesRef.current.has(messageId)) {
+              console.log('⚠️ Duplicate message ignored:', messageId);
+              return;
+            }
+            processedMessagesRef.current.add(messageId);
             // Eğer yeni chat oluşuyorsa, hemen ekle
-            const chatId = [currentUser?.id, data.message?.senderId].sort().join('_');
+            const userIds = [currentUser?.id, data.message?.senderId].sort();
+            const chatId = userIds.join('_');
             const existingChat = chats.find(chat => chat.id === chatId);
             
             if (!existingChat) {
@@ -871,14 +885,25 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   }
                 };
                 
-                // Chat listesini güncelle
-                setChats(prevChats => [newChat, ...prevChats]);
+                // Chat listesini güncelle - duplicate kontrolü ile
+                setChats(prevChats => {
+                  const exists = prevChats.find(chat => chat.id === chatId);
+                  if (exists) {
+                    console.log('⚠️ Chat already exists, updating instead of creating new one');
+                    return prevChats.map(chat => 
+                      chat.id === chatId 
+                        ? { ...chat, lastMessage: newChat.lastMessage, lastTime: newChat.lastTime }
+                        : chat
+                    );
+                  }
+                  return [newChat, ...prevChats];
+                });
                 
                 // Count'u güncelle
                 setUnreadCounts(prevCounts => {
                   const newCounts = {
                     ...prevCounts,
-                    [chatId]: 1
+                    [chatId]: (prevCounts[chatId] || 0) + 1
                   };
                   
                   // Toplam count'ı hesapla ve badge'i güncelle
@@ -916,7 +941,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setUnreadCounts(prevCounts => {
                   const newCounts = {
                     ...prevCounts,
-                    [chatId]: 1
+                    [chatId]: (prevCounts[chatId] || 0) + 1
                   };
                   
                   // Toplam count'ı hesapla ve badge'i güncelle

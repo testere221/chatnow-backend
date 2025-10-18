@@ -403,7 +403,7 @@ export default function Chats() {
                   const isSelected = selectedChatId === chat.id;
                   if (isSelected) {
                     return (
-                      <View key={chat.id} style={styles.slideContainer}>
+                      <View key={`slide-${chat.id}`} style={styles.slideContainer}>
                         {/* Sol taraf - Kapatma butonu */}
                         <TouchableOpacity 
                           style={styles.closeButton}
@@ -496,7 +496,7 @@ export default function Chats() {
                   } else {
                     return (
                       <TouchableOpacity 
-                        key={chat.id} 
+                        key={`touch-${chat.id}`} 
                         style={styles.chatItem}
                         delayLongPress={500}
                         onLongPress={() => handleLongPress(chat)}

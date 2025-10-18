@@ -136,7 +136,7 @@ export default function Home() {
   const [hasMoreOfflineUsers, setHasMoreOfflineUsers] = useState(true);
   const [onlinePage, setOnlinePage] = useState(1);
   const [offlinePage, setOfflinePage] = useState(1);
-  const USERS_PER_PAGE = 20;
+  const USERS_PER_PAGE = 40;
   const insets = useSafeAreaInsets();
 
   // Grid
@@ -340,6 +340,7 @@ export default function Home() {
           {/* Main Content */}
           <View style={styles.content}>
             <FlatList
+              key={`flatlist-${columns}`}
               data={users}
               keyExtractor={keyExtractor}
               renderItem={renderItem}

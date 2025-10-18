@@ -130,6 +130,25 @@ class ApiService {
   static async getBlockedUsers(userId: string) {
     return this.request(`${API_CONFIG.ENDPOINTS.BLOCKS.LIST}/${userId}`);
   }
+
+  // Account deletion
+  static async deleteAccount() {
+    return this.request(API_CONFIG.ENDPOINTS.AUTH.DELETE_ACCOUNT, {
+      method: 'DELETE',
+    });
+  }
+
+  // Mark messages as read
+  static async markMessagesAsRead(chatId: string) {
+    return this.request(`${API_CONFIG.ENDPOINTS.MESSAGES.MARK_AS_READ}/${chatId}`, {
+      method: 'PUT',
+    });
+  }
+
+  // Get user info
+  static async getUserInfo(userId: string) {
+    return this.request(`${API_CONFIG.ENDPOINTS.USERS.PROFILE}/${userId}`);
+  }
 }
 
 export default ApiService;

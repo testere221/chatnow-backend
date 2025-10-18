@@ -41,6 +41,7 @@ export const API_CONFIG = {
       FORGOT_PASSWORD: '/api/auth/forgot-password',
       VERIFY_RESET_TOKEN: '/api/auth/verify-reset-token',
       RESET_PASSWORD: '/api/auth/reset-password',
+      DELETE_ACCOUNT: '/api/auth/delete-account',
     },
     USERS: {
       LIST: '/api/users',
@@ -54,6 +55,12 @@ export const API_CONFIG = {
     },
     CHATS: {
       LIST: '/api/chats',
+      MESSAGES: '/api/chats',
+    },
+    BLOCKS: {
+      CREATE: '/api/users/:id/block',
+      DELETE: '/api/users/:id/unblock',
+      LIST: '/api/users/:id/blocked',
     },
   },
 };

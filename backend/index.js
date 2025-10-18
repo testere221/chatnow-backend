@@ -1458,6 +1458,15 @@ app.delete('/api/test/delete-users', async (req, res) => {
   }
 });
 
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: 'Backend çalışıyor!', 
+    status: 'OK',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Test endpoint - mesajlar oluşturma
 app.post('/api/test/create-messages', async (req, res) => {
   try {
