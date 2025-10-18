@@ -2,10 +2,14 @@ const sgMail = require('@sendgrid/mail');
 
 // SendGrid API Key'i environment variable'dan al ve kontrol et
 const KEY = String(process.env.SENDGRID_API_KEY || '').trim();
+console.log('SENDGRID_API_KEY exists:', !!process.env.SENDGRID_API_KEY);
+console.log('SENDGRID_API_KEY length:', KEY.length);
+console.log('All env vars:', Object.keys(process.env).filter(key => key.includes('SENDGRID')));
+
 if (!KEY) {
+  console.error('SENDGRID_API_KEY is missing or empty');
   throw new Error('SENDGRID_API_KEY missing or empty');
 }
-console.log('SendGrid API Key length:', KEY.length);
 sgMail.setApiKey(KEY);
 
 // Genel e‑posta gönderim fonksiyonu
