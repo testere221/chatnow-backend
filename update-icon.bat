@@ -113,10 +113,10 @@ echo ========================================
 echo Backend basariyla push edildi!
 echo ========================================
 echo.
-echo Render otomatik deploy baslayacak...
-echo URL: https://chatnow-app.onrender.com
+echo Railway otomatik deploy baslayacak...
+echo URL: https://observant-wisdom-production-ee9f.up.railway.app
 echo.
-echo Deploy durumunu kontrol etmek icin Render dashboard'a git.
+echo Deploy durumunu kontrol etmek icin Railway dashboard'a git.
 goto end
 
 :both_update
@@ -150,7 +150,7 @@ echo ========================================
 echo Her sey basariyla tamamlandi!
 echo ========================================
 echo.
-echo Backend: Render'da otomatik deploy basladi
+echo Backend: Railway'de otomatik deploy basladi
 echo Frontend: APK olusturuldu
 echo.
 echo Telefona yuklemek ister misiniz?
@@ -250,7 +250,7 @@ echo ========================================
 echo    GUNCELLEME TAMAMLANDI!
 echo ========================================
 echo.
-echo Backend URL: https://chatnow-app.onrender.com
+echo Backend URL: https://observant-wisdom-production-ee9f.up.railway.app
 echo APK Konumu: android\app\build\outputs\apk\release\app-release.apk
 echo.
 pause
