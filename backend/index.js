@@ -885,6 +885,13 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
         updateFields.unread_count_user2 = (existingChat.unread_count_user2 || 0) + 1;
         updateFields.unread_count_user1 = 0; // Gönderen için sıfırla
       }
+      
+      // Sender bilgilerini güncelle (mesaj gönderen kişinin bilgileri)
+      updateFields.name = sender?.name || 'Bilinmeyen Kullanıcı';
+      updateFields.avatar = sender?.avatar || '👤';
+      updateFields.avatar_image = sender?.avatar_image || '';
+      updateFields.bg_color = sender?.bg_color || '#FFB6C1';
+      updateFields.gender = sender?.gender || 'female';
     } else {
       // Yeni chat - alıcı için 1, gönderen için 0
       if (receiverId === user1Id) {
