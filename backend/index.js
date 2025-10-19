@@ -168,13 +168,15 @@ app.post('/api/upload/image', authenticateToken, upload.single('image'), async (
       return res.status(400).json({ message: 'Resim dosyası bulunamadı.' });
     }
 
-    // Ngrok URL'ini kullan (ngrok-free.app ile başlayan URL'ler için)
+    // Production URL'ini kullan
     const host = req.get('host');
     const protocol = req.protocol;
     
-    // Eğer ngrok URL'i ise, ngrok URL'ini kullan
+    // Production'da Railway URL'ini kullan
     let imageUrl;
-    if (host && host.includes('ngrok-free.app')) {
+    if (process.env.NODE_ENV === 'production' || host?.includes('railway.app')) {
+      imageUrl = `https://observant-wisdom-production-ee9f.up.railway.app/uploads/${req.file.filename}`;
+    } else if (host && host.includes('ngrok-free.app')) {
       imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
     } else {
       // Local development için
