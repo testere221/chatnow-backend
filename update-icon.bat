@@ -28,7 +28,9 @@ echo    FRONTEND GUNCELLEMESI
 echo ========================================
 echo.
 echo 1. APK olusturuluyor...
-npx expo run:android --variant release
+cd android
+call gradlew.bat assembleRelease
+cd ..
 if %errorlevel% neq 0 (
     echo APK olusturma hatasi! Program kapaniyor...
     pause
@@ -73,6 +75,9 @@ echo.
 echo ========================================
 echo    AAB (APP BUNDLE) OLUSTURMA
 echo ========================================
+echo.
+echo NOT: Surum numarasini manuel olarak android\app\build.gradle dosyasinda degistirin!
+echo.
 echo.
 echo AAB olusturuluyor...
 cd android
