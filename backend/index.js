@@ -704,6 +704,17 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
     });
     // Yeni mesaj yayınlandı
 
+    // Hızlı response gönder
+    res.json({
+      success: true,
+      message: 'Mesaj gönderildi!',
+      messageId: newMessage._id,
+      chatId: chat_id,
+      user: {
+        diamonds: sender.diamonds - requiredTokens
+      }
+    });
+
     // Push notification kontrolü - HER ZAMAN GÖNDER
     const receiverSocketId = onlineUsers.get(receiverId);
     const isReceiverOnline = !!receiverSocketId;
