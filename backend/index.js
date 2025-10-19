@@ -657,10 +657,10 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
       last_message: text || 'Resim',
       last_time: new Date(),
       name: sender?.name || 'Bilinmeyen Kullanıcı',
-      avatar: sender?.avatar,
-      avatar_image: sender?.avatar_image,
-      bg_color: sender?.bg_color,
-      gender: sender?.gender
+      avatar: sender?.avatar || '👤',
+      avatar_image: sender?.avatar_image || '', // Boş string yap
+      bg_color: sender?.bg_color || '#FFB6C1',
+      gender: sender?.gender || 'female'
     };
 
     if (existingChat) {
