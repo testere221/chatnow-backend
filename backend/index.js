@@ -637,6 +637,44 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
     const chat_id = [senderId, receiverId].sort().join('_');
     // Chat ID oluşturuldu
 
+    // Chat oluştur/güncelle - MESAJ KAYDETMEDEN ÖNCE
+    const sortedIds = [senderId, receiverId].sort();
+    const user1Id = sortedIds[0];
+    const user2Id = sortedIds[1];
+    
+    // Mevcut chat'i bul
+    const existingChat = await Chat.findOne({
+      $or: [
+        { user1_id: senderId, user2_id: receiverId },
+        { user1_id: receiverId, user2_id: senderId }
+      ]
+    });
+
+    let updateFields = {
+      user1_id: user1Id,
+      user2_id: user2Id,
+      chat_id: chat_id,
+      last_message: text || 'Resim',
+      last_time: new Date(),
+      name: sender?.name || 'Bilinmeyen Kullanıcı',
+      avatar: sender?.avatar,
+      avatar_image: sender?.avatar_image,
+      bg_color: sender?.bg_color,
+      gender: sender?.gender
+    };
+
+    if (existingChat) {
+      // Mevcut chat'i güncelle
+      await Chat.findByIdAndUpdate(existingChat._id, updateFields);
+    } else {
+      // Yeni chat oluştur
+      const newChat = new Chat({
+        ...updateFields,
+        unread_count: 0
+      });
+      await newChat.save();
+    }
+
     const newMessage = new Message({
       chat_id,
       sender_id: senderId,
