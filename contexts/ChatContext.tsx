@@ -310,47 +310,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return defaultUserInfo;
       }
       
-      if (userData) {
-        const userInfo = {
-          id: userData.id,
-          name: userData.name || 'Kullanıcı',
-          surname: userData.surname || '',
-          avatar: userData.avatar || '👤',
-          avatarImage: userData.avatar_image || '',
-          bgColor: userData.bg_color || '#FFB6C1',
-          gender: userData.gender || 'female',
-          isOnline: !!userData.is_online,
-          lastActive: userData.last_active
-        };
-        
-        setUserCache(prev => ({ ...prev, [userId]: userInfo }));
-        return userInfo;
-      } else {
-        
-        // Rastgele isim üret
-        const names = ['Ahmet', 'Mehmet', 'Ali', 'Ayşe', 'Fatma', 'Zeynep', 'Can', 'Eren', 'Selin', 'Ece'];
-        const surnames = ['Yılmaz', 'Kaya', 'Demir', 'Çelik', 'Şahin', 'Yıldız', 'Öztürk', 'Aydın'];
-        const colors = ['#FFB6C1', '#87CEEB', '#98FB98', '#DDA0DD', '#F0E68C', '#FFA07A'];
-        
-        const randomName = names[Math.floor(Math.random() * names.length)];
-        const randomSurname = surnames[Math.floor(Math.random() * surnames.length)];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        const randomGender = Math.random() > 0.5 ? 'male' : 'female';
-        
-        const defaultUserInfo = {
-          id: userId,
-          name: randomName,
-          surname: randomSurname,
-          avatar: randomGender === 'male' ? '👨' : '👩',
-          avatarImage: '',
-          bgColor: randomColor,
-          gender: randomGender,
-          isOnline: Math.random() > 0.3, // %70 online olma şansı
-          lastActive: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000) // Son 24 saat içinde
-        };
-        setUserCache(prev => ({ ...prev, [userId]: defaultUserInfo }));
-        return defaultUserInfo;
-      }
     } catch (error) {
       // Sessiz hata - log spam'i önlemek için
     }
@@ -418,13 +377,23 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Mesaj gönder
   const sendMessage = async (receiverId: string, text: string, imageUrl?: string): Promise<any> => {
+    console.log('🚀 sendMessage başladı:', { receiverId, text, imageUrl, currentUserId: currentUser?.id });
+    
     if (!currentUser?.id) {
+      console.log('❌ currentUser.id yok!');
       return;
     }
     
     try {
-      // API ile mesaj gönder
-      const response = await ApiService.sendMessage(receiverId, text, imageUrl);
+      console.log('🔄 API ile mesaj gönderiliyor...');
+      // API ile mesaj gönder - timeout ile
+      const response = await Promise.race([
+        ApiService.sendMessage(receiverId, text, imageUrl),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('API timeout')), 10000)
+        )
+      ]);
+      console.log('✅ API mesaj gönderme başarılı:', response);
       
       // WebSocket bağlantısını kontrol et
       if (!webSocketService.isConnected()) {
@@ -450,8 +419,10 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         );
       } else {
         // Create new chat
+        console.log('🔄 Yeni chat oluşturuluyor:', { receiverId, chatId });
         try {
           const userInfo = await getUserInfo(receiverId);
+          console.log('✅ Kullanıcı bilgileri alındı:', userInfo);
           const newChat: Chat = {
             id: chatId,
             user1Id: currentUser.id,
@@ -472,9 +443,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               is_online: userInfo.isOnline || false
             }
           };
+          console.log('✅ Yeni chat oluşturuldu:', newChat);
           setChats(prevChats => [newChat, ...prevChats]);
+          console.log('✅ Chat listesi güncellendi');
         } catch (error) {
-          console.error('Error fetching user info for new chat in sendMessage:', error);
+          console.error('❌ Error fetching user info for new chat in sendMessage:', error);
           // Fallback for new chat if user info fetch fails
           const newChat: Chat = {
             id: chatId,
@@ -496,7 +469,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               is_online: false
             }
           };
+          console.log('✅ Fallback chat oluşturuldu:', newChat);
           setChats(prevChats => [newChat, ...prevChats]);
+          console.log('✅ Fallback chat listesi güncellendi');
         }
       }
       
@@ -508,6 +483,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       return response;
     } catch (error: any) {
+      console.log('❌ sendMessage hatası:', error.message);
+      console.log('❌ Error details:', error);
       throw error;
     }
   };

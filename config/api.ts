@@ -254,10 +254,15 @@ export class ApiService {
   }
 
   static async markMessagesAsRead(chatId: string) {
-    return this.request(API_CONFIG.ENDPOINTS.MESSAGES.MARK_AS_READ, {
-      method: 'POST',
-      body: JSON.stringify({ chatId }),
-    });
+    return Promise.race([
+      this.request(API_CONFIG.ENDPOINTS.MESSAGES.MARK_AS_READ, {
+        method: 'POST',
+        body: JSON.stringify({ chatId }),
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('markAsRead timeout')), 5000)
+      )
+    ]);
   }
 
   // Chat methods
