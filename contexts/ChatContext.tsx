@@ -917,7 +917,23 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     console.log('⚠️ Chat already exists, updating instead of creating new one');
                     return prevChats.map(chat => 
                       chat.id === chatId 
-                        ? { ...chat, lastMessage: newChat.lastMessage, lastTime: newChat.lastTime }
+                        ? { 
+                            ...chat, 
+                            lastMessage: newChat.lastMessage, 
+                            lastTime: newChat.lastTime,
+                            name: userInfo.name || chat.name,
+                            avatar: userInfo.avatar || chat.avatar,
+                            bgColor: userInfo.bgColor || chat.bgColor,
+                            gender: userInfo.gender || chat.gender,
+                            otherUser: {
+                              ...chat.otherUser,
+                              name: userInfo.name || chat.otherUser?.name,
+                              avatar: userInfo.avatar || chat.otherUser?.avatar,
+                              bg_color: userInfo.bgColor || chat.otherUser?.bg_color,
+                              gender: userInfo.gender || chat.otherUser?.gender,
+                              is_online: userInfo.isOnline || chat.otherUser?.is_online
+                            }
+                          }
                         : chat
                     );
                   }
