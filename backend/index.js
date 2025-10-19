@@ -756,6 +756,8 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
       }
     };
     
+    console.log('🔄 Sending chat update:', chatUpdateData);
+    
     // Her iki kullanıcıya da chat güncellemesi gönder
     io.to(receiverId).emit('chatUpdated', chatUpdateData);
     io.to(senderId).emit('chatUpdated', chatUpdateData);
@@ -939,6 +941,14 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
       { $set: updateFields },
       { upsert: true, new: true }
     );
+    
+    console.log('🔄 Chat updated:', {
+      chatId: chat._id,
+      name: updateFields.name,
+      avatar: updateFields.avatar,
+      senderId: senderId,
+      receiverId: receiverId
+    });
 
     // Güncel kullanıcı bilgilerini al
     const updatedSender = await User.findById(senderId);

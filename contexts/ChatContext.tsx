@@ -1133,6 +1133,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 : chat
             )
           );
+          
+          console.log('✅ Chat listesi güncellendi:', chatId, senderInfo.name);
         };
         
         webSocketService.on('chatUpdated', handleChatUpdated);
