@@ -62,7 +62,7 @@ const convertBase64ToHttpAuto = async (base64Data: string): Promise<string> => {
       },
       body: JSON.stringify({
         base64Data: base64Data,
-        filename: `auto-${Date.now()}.jpg`
+        filename: `auto-${Date.now()}.jpeg` // JPEG uzantısı kullan
       })
     });
     
@@ -113,7 +113,12 @@ const MessageImageWithAutoConvert = ({ imageUrl, style }: { imageUrl: string | n
   
   return (
     <Image 
-      source={{ uri: imageUri }} 
+      source={{ 
+        uri: imageUri,
+        headers: {
+          'Accept': 'image/jpeg, image/jpg, image/png, image/gif, image/webp'
+        }
+      }} 
       style={style}
       resizeMode="cover"
       onError={(error) => {

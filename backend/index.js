@@ -219,7 +219,7 @@ app.post('/api/convert-base64-to-file', authenticateToken, async (req, res) => {
     console.log('✅ Base64 buffer\'a çevrildi, boyut:', buffer.length);
     
     // Dosya adı oluştur
-    const fileExtension = 'jpg';
+    const fileExtension = 'jpeg'; // JPG yerine JPEG kullan
     const uniqueFilename = filename || `converted-${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExtension}`;
     console.log('📁 Dosya adı oluşturuldu:', uniqueFilename);
     
