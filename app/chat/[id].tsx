@@ -790,7 +790,7 @@ export default function ChatDetail() {
                 // Base64 ise HTTP'ye çevir
                 if (selectedImage && !selectedImage.startsWith('http') && !selectedImage.startsWith('data:')) {
                   console.log('🔄 Base64 modal resmi HTTP\'ye çevriliyor...');
-                  const httpUrl = await convertBase64ToHttp(selectedImage);
+                  const httpUrl = await convertBase64ToHttpAuto(selectedImage);
                   console.log('✅ Modal resmi HTTP URL:', httpUrl);
                 }
               }}
