@@ -873,32 +873,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
     //   gender: receiverUser?.gender
     // });
     
-    // Chat güncelleme - count yönetimi ile
-    const sortedIds = [senderId, receiverId].sort();
-    const user1Id = sortedIds[0];
-    const user2Id = sortedIds[1];
-    
-    // Mevcut chat'i bul
-    const existingChat = await Chat.findOne({
-      $or: [
-        { user1_id: senderId, user2_id: receiverId },
-        { user1_id: receiverId, user2_id: senderId }
-      ]
-    });
-
-    let updateFields = {
-      user1_id: user1Id,
-      user2_id: user2Id,
-      chat_id: chat_id,
-      last_message: text || 'Resim',
-      last_time: new Date(),
-      name: receiverUser?.name || 'Bilinmeyen Kullanıcı',
-      avatar: receiverUser?.avatar,
-      avatar_image: receiverUser?.avatar_image,
-      bg_color: receiverUser?.bg_color,
-      gender: receiverUser?.gender,
-      deleted_for: [] // Boş array yap
-    };
+    // Chat güncelleme - count yönetimi ile (zaten yukarıda oluşturuldu)
 
     // Count güncelleme - sadece alıcı için artır
     if (existingChat) {
