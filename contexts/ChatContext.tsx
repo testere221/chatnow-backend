@@ -640,7 +640,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
     } catch (error) {
-      console.error('❌ Error marking messages as read:', error);
+      console.log('⚠️ Mark as read failed (non-critical):', error.message);
+      // Bu hata kritik değil, uygulama çalışmaya devam etsin
     }
   };
 
