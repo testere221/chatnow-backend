@@ -277,6 +277,53 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
         
         setUserCache(prev => ({ ...prev, [userId]: userInfo }));
+        
+        // Global state'i de güncelle
+        updateUserState(userId, {
+          isOnline: userInfo.isOnline,
+          lastSeen: userData.last_active || new Date(),
+          name: userInfo.name,
+          surname: userInfo.surname,
+          avatar: userInfo.avatar,
+          avatarImage: userInfo.avatarImage,
+          bgColor: userInfo.bgColor,
+          gender: userInfo.gender
+        });
+        
+        return userInfo;
+      } else {
+        // Kullanıcı bulunamadı, varsayılan bilgiler döndür
+        console.log('⚠️ Kullanıcı bulunamadı, varsayılan bilgiler kullanılıyor:', userId);
+        const defaultUserInfo = {
+          id: userId,
+          name: 'Kullanıcı',
+          surname: '',
+          avatar: '👤',
+          avatarImage: '',
+          bgColor: '#FFB6C1',
+          gender: 'female',
+          isOnline: false,
+          lastActive: new Date()
+        };
+        
+        setUserCache(prev => ({ ...prev, [userId]: defaultUserInfo }));
+        return defaultUserInfo;
+      }
+      
+      if (userData) {
+        const userInfo = {
+          id: userData.id,
+          name: userData.name || 'Kullanıcı',
+          surname: userData.surname || '',
+          avatar: userData.avatar || '👤',
+          avatarImage: userData.avatar_image || '',
+          bgColor: userData.bg_color || '#FFB6C1',
+          gender: userData.gender || 'female',
+          isOnline: !!userData.is_online,
+          lastActive: userData.last_active
+        };
+        
+        setUserCache(prev => ({ ...prev, [userId]: userInfo }));
         return userInfo;
       } else {
         
