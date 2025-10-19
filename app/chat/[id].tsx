@@ -6,20 +6,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_CONFIG, ApiService } from '../../config/api';
@@ -28,6 +28,48 @@ import { useProfile } from '../../contexts/ProfileContext';
 import { webSocketService } from '../../services/websocket';
 import { NavigationHelper } from '../../utils/NavigationHelper';
 import { formatLastSeen } from '../../utils/TimeUtils';
+
+// Base64'i HTTP URL'ye çevir - Otomatik
+const convertBase64ToHttpAuto = async (base64Data: string): Promise<string> => {
+  // Eğer zaten HTTP URL ise direkt döndür
+  if (base64Data.startsWith('http')) {
+    return base64Data;
+  }
+  
+  // Eğer data: URI ise direkt döndür
+  if (base64Data.startsWith('data:')) {
+    return base64Data;
+  }
+  
+  // Base64 ise HTTP'ye çevir
+  try {
+    console.log('🔄 Base64 otomatik HTTP\'ye çevriliyor...');
+    const response = await fetch(`${API_CONFIG.BASE_URL}/api/convert-base64-to-file`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${await AsyncStorage.getItem('auth_token')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        base64Data: base64Data,
+        filename: `auto-${Date.now()}.jpg`
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('✅ Base64 otomatik HTTP\'ye çevrildi:', result.imageUrl);
+      return result.imageUrl;
+    } else {
+      console.log('❌ Base64 otomatik çevirme hatası:', result.message);
+      return `data:image/jpeg;base64,${base64Data}`; // Fallback
+    }
+  } catch (error) {
+    console.log('❌ Base64 otomatik çevirme network hatası:', error);
+    return `data:image/jpeg;base64,${base64Data}`; // Fallback
+  }
+};
 
 type Msg = {
   id: string;
@@ -38,6 +80,38 @@ type Msg = {
   timestamp: any;
   read: boolean;
   deletedFor: string[];
+};
+
+// Message Image Component with Auto Convert
+const MessageImageWithAutoConvert = ({ imageUrl, style }: { imageUrl: string | null | undefined, style: any }) => {
+  const [imageUri, setImageUri] = useState<string>(imageUrl || '');
+  
+  useEffect(() => {
+    const convertImage = async () => {
+      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+        console.log('🔄 Mesaj Base64 otomatik HTTP\'ye çevriliyor...');
+        const httpUrl = await convertBase64ToHttpAuto(imageUrl);
+        setImageUri(httpUrl);
+        console.log('✅ Mesaj HTTP URL güncellendi:', httpUrl);
+      }
+    };
+    
+    convertImage();
+  }, [imageUrl]);
+  
+  return (
+    <Image 
+      source={{ uri: imageUri }} 
+      style={style}
+      resizeMode="cover"
+      onError={(error) => {
+        console.log('❌ Mesaj resim yüklenemedi:', imageUri, error);
+      }}
+      onLoad={() => {
+        console.log('✅ Mesaj resmi yüklendi:', imageUri);
+      }}
+    />
+  );
 };
 
 const getUserData = (userId: string) => ({
@@ -431,7 +505,10 @@ export default function ChatDetail() {
               onPress={() => { setSelectedImage(item.imageUrl!); setShowImageModal(true); }}
               activeOpacity={0.85}
             >
-              <Image source={{ uri: item.imageUrl }} style={styles.messageImage} resizeMode="cover" />
+              <MessageImageWithAutoConvert 
+                imageUrl={item.imageUrl}
+                style={styles.messageImage}
+              />
             </TouchableOpacity>
           ) : (
             <Text style={[styles.messageText, { color: '#FFFFFF' }]}>{item.text}</Text>
@@ -686,7 +763,29 @@ export default function ChatDetail() {
         <Modal visible transparent animationType="fade" onRequestClose={() => setShowImageModal(false)}>
           <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,0.92)',justifyContent:'center',alignItems:'center'}}>
             <TouchableOpacity style={{position:'absolute',top:0,left:0,right:0,bottom:0}} activeOpacity={1} onPress={() => setShowImageModal(false)} />
-            <Image source={{ uri: selectedImage }} style={{width:'100%',height:'100%'}} resizeMode="contain" />
+            <Image 
+              source={{ 
+                uri: selectedImage?.startsWith('http') 
+                  ? selectedImage 
+                  : selectedImage?.startsWith('data:')
+                  ? selectedImage
+                  : `data:image/jpeg;base64,${selectedImage}`
+              }} 
+              style={{width:'100%',height:'100%'}} 
+              resizeMode="contain"
+              onError={async (error) => {
+                console.log('❌ Modal resim yüklenemedi:', selectedImage, error);
+                // Base64 ise HTTP'ye çevir
+                if (selectedImage && !selectedImage.startsWith('http') && !selectedImage.startsWith('data:')) {
+                  console.log('🔄 Base64 modal resmi HTTP\'ye çevriliyor...');
+                  const httpUrl = await convertBase64ToHttp(selectedImage);
+                  console.log('✅ Modal resmi HTTP URL:', httpUrl);
+                }
+              }}
+              onLoad={() => {
+                console.log('✅ Modal resmi yüklendi:', selectedImage);
+              }}
+            />
             <TouchableOpacity style={{position:'absolute',top:16,right:16,width:40,height:40,borderRadius:20,backgroundColor:'rgba(255,255,255,0.2)',justifyContent:'center',alignItems:'center'}} onPress={() => setShowImageModal(false)}>
               <Text style={{color:'#fff',fontSize:22,fontWeight:'700'}}>✕</Text>
             </TouchableOpacity>

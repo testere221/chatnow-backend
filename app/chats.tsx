@@ -496,7 +496,7 @@ export default function Chats() {
                   } else {
                     return (
                       <TouchableOpacity 
-                        key={`touch-${chat.id}`} 
+                        key={`touch-${chat.id}-${isSelected ? 'selected' : 'normal'}`} 
                         style={styles.chatItem}
                         delayLongPress={500}
                         onLongPress={() => handleLongPress(chat)}
