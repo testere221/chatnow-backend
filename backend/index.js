@@ -203,26 +203,37 @@ app.post('/api/convert-base64-to-file', authenticateToken, async (req, res) => {
   try {
     const { base64Data, filename } = req.body;
     
+    console.log('🔄 Base64 dönüştürme isteği geldi:', {
+      filename: filename,
+      base64Length: base64Data ? base64Data.length : 0,
+      userId: req.user.userId
+    });
+    
     if (!base64Data) {
+      console.log('❌ Base64 data eksik');
       return res.status(400).json({ message: 'Base64 data gerekli.' });
     }
     
     // Base64'i buffer'a çevir
     const buffer = Buffer.from(base64Data, 'base64');
+    console.log('✅ Base64 buffer\'a çevrildi, boyut:', buffer.length);
     
     // Dosya adı oluştur
     const fileExtension = 'jpg';
     const uniqueFilename = filename || `converted-${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExtension}`;
+    console.log('📁 Dosya adı oluşturuldu:', uniqueFilename);
     
     // Dosyayı kaydet
     const fs = require('fs');
     const filePath = path.join(__dirname, 'uploads', uniqueFilename);
     fs.writeFileSync(filePath, buffer);
+    console.log('💾 Dosya kaydedildi:', filePath);
     
     // HTTP URL oluştur
     const host = req.get('host');
     const protocol = req.protocol;
     const imageUrl = `${protocol}://${host}/uploads/${uniqueFilename}`;
+    console.log('🌐 HTTP URL oluşturuldu:', imageUrl);
     
     res.json({
       success: true,
@@ -230,7 +241,10 @@ app.post('/api/convert-base64-to-file', authenticateToken, async (req, res) => {
       filename: uniqueFilename
     });
     
+    console.log('✅ Base64 dönüştürme başarılı!');
+    
   } catch (error) {
+    console.log('❌ Base64 dönüştürme hatası:', error.message);
     res.status(500).json({ 
       success: false, 
       message: 'Base64 dönüştürme hatası', 
