@@ -31,29 +31,47 @@ import { formatLastSeen } from '../../utils/TimeUtils';
 
 // Base64'i HTTP URL'ye çevir - Otomatik
 const convertBase64ToHttpAuto = async (base64Data: string): Promise<string> => {
+  console.log('🔍 URI analizi:', {
+    uri: base64Data,
+    startsWithHttp: base64Data.startsWith('http'),
+    startsWithData: base64Data.startsWith('data:'),
+    startsWithFile: base64Data.startsWith('file://'),
+    startsWithContent: base64Data.startsWith('content://'),
+    length: base64Data.length
+  });
+  
   // Eğer zaten HTTP URL ise direkt döndür
   if (base64Data.startsWith('http')) {
+    console.log('✅ HTTP URL, direkt döndürülüyor');
     return base64Data;
   }
   
   // Eğer data: URI ise direkt döndür
   if (base64Data.startsWith('data:')) {
+    console.log('✅ Data URI, direkt döndürülüyor');
     return base64Data;
   }
   
   // Eğer file:// URI ise direkt döndür
   if (base64Data.startsWith('file://')) {
+    console.log('✅ File URI, direkt döndürülüyor');
     return base64Data;
   }
   
   // Eğer content:// URI ise direkt döndür
   if (base64Data.startsWith('content://')) {
+    console.log('✅ Content URI, direkt döndürülüyor');
     return base64Data;
   }
   
   // Eğer Base64 string ise HTTP'ye çevir
   try {
     console.log('🔄 Base64 otomatik HTTP\'ye çevriliyor...');
+    
+    // Android sürümüne göre format belirle
+    const isBase64 = /^[A-Za-z0-9+/]*={0,2}$/.test(base64Data);
+    const mimeType = isBase64 ? 'image/jpeg' : 'image/jpeg';
+    
     const response = await fetch(`${API_CONFIG.BASE_URL}/api/convert-base64-to-file`, {
       method: 'POST',
       headers: {
@@ -62,7 +80,8 @@ const convertBase64ToHttpAuto = async (base64Data: string): Promise<string> => {
       },
       body: JSON.stringify({
         base64Data: base64Data,
-        filename: `auto-${Date.now()}.jpeg` // JPEG uzantısı kullan
+        filename: `auto-${Date.now()}.jpeg`,
+        mimeType: mimeType
       })
     });
     

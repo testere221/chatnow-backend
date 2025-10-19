@@ -201,11 +201,12 @@ app.post('/api/upload/image', authenticateToken, upload.single('image'), async (
 // Base64'i dosyaya kaydet ve HTTP URL döndür
 app.post('/api/convert-base64-to-file', authenticateToken, async (req, res) => {
   try {
-    const { base64Data, filename } = req.body;
+    const { base64Data, filename, mimeType } = req.body;
     
     console.log('🔄 Base64 dönüştürme isteği geldi:', {
       filename: filename,
       base64Length: base64Data ? base64Data.length : 0,
+      mimeType: mimeType,
       userId: req.user.userId
     });
     
