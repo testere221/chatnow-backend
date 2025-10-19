@@ -145,7 +145,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   // Chat cache for performance
   const [chatCache, setChatCache] = useState<{data: Chat[], timestamp: number} | null>(null);
-  const CACHE_DURATION = 30000; // 30 saniye cache
+  const CACHE_DURATION = 300000; // 5 dakika cache - uygulama kapanıp açılınca sohbetler kaybolmasın
 
   // Count sistemi state'i
   const [unreadCounts, setUnreadCounts] = useState<{ [chatId: string]: number }>({});
@@ -377,15 +377,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Mesaj gönder
   const sendMessage = async (receiverId: string, text: string, imageUrl?: string): Promise<any> => {
-    console.log('🚀 sendMessage başladı:', { receiverId, text, imageUrl, currentUserId: currentUser?.id });
-    
-    if (!currentUser?.id) {
-      console.log('❌ currentUser.id yok!');
-      return;
-    }
-    
-    try {
-      console.log('🔄 API ile mesaj gönderiliyor...');
+      if (!currentUser?.id) {
+        return;
+      }
+      
+      try {
       // API ile mesaj gönder - timeout ile
       const response = await Promise.race([
         ApiService.sendMessage(receiverId, text, imageUrl),
@@ -393,7 +389,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setTimeout(() => reject(new Error('API timeout')), 10000)
         )
       ]);
-      console.log('✅ API mesaj gönderme başarılı:', response);
       
       // WebSocket bağlantısını kontrol et
       if (!webSocketService.isConnected()) {
@@ -405,9 +400,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const existingChatIndex = chats.findIndex(chat => chat.id === chatId);
 
       if (existingChatIndex !== -1) {
-        // Update existing chat
-        setChats(prevChats =>
-          prevChats.map((chat, index) =>
+        // Update existing chat and move to top
+        setChats(prevChats => {
+          const updatedChats = prevChats.map((chat, index) =>
             index === existingChatIndex
               ? {
                   ...chat,
@@ -415,14 +410,17 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   lastTime: new Date()
                 }
               : chat
-          )
-        );
+          );
+          
+          // Güncellenen chat'i en üste taşı - WhatsApp gibi sıralama
+          return updatedChats.sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
+        });
       } else {
         // Create new chat
-        console.log('🔄 Yeni chat oluşturuluyor:', { receiverId, chatId });
         try {
-          const userInfo = await getUserInfo(receiverId);
-          console.log('✅ Kullanıcı bilgileri alındı:', userInfo);
+          console.log('🔍 sendMessage: getUserInfo çağrılıyor:', receiverId);
+          const userInfo = await getUserInfo(receiverId, true);
+          console.log('✅ sendMessage: Kullanıcı bilgileri alındı:', userInfo);
           const newChat: Chat = {
             id: chatId,
             user1Id: currentUser.id,
@@ -432,20 +430,26 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             unreadCount: 0, // Sender doesn't have unread messages for their own sent message
             name: userInfo.name || 'Kullanıcı',
             avatar: userInfo.avatar || '👤',
+            avatarImage: userInfo.avatarImage || '',
             bgColor: userInfo.bgColor || '#FFB6C1',
             gender: userInfo.gender || 'female',
             otherUser: {
               id: receiverId,
               name: userInfo.name || 'Kullanıcı',
+              surname: userInfo.surname || '',
               avatar: userInfo.avatar || '👤',
+              avatar_image: userInfo.avatarImage || '',
               bg_color: userInfo.bgColor || '#FFB6C1',
               gender: userInfo.gender || 'female',
-              is_online: userInfo.isOnline || false
+              is_online: userInfo.isOnline || false,
+              last_active: userInfo.lastActive
             }
           };
-          console.log('✅ Yeni chat oluşturuldu:', newChat);
-          setChats(prevChats => [newChat, ...prevChats]);
-          console.log('✅ Chat listesi güncellendi');
+          // Yeni chat'i en üste ekle ve sırala
+          setChats(prevChats => {
+            const updatedChats = [newChat, ...prevChats];
+            return updatedChats.sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
+          });
         } catch (error) {
           console.error('❌ Error fetching user info for new chat in sendMessage:', error);
           // Fallback for new chat if user info fetch fails
@@ -458,20 +462,26 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             unreadCount: 0,
             name: 'Kullanıcı',
             avatar: '👤',
+            avatarImage: '',
             bgColor: '#FFB6C1',
             gender: 'female',
             otherUser: {
               id: receiverId,
               name: 'Kullanıcı',
+              surname: '',
               avatar: '👤',
+              avatar_image: '',
               bg_color: '#FFB6C1',
               gender: 'female',
-              is_online: false
+              is_online: false,
+              last_active: new Date()
             }
           };
-          console.log('✅ Fallback chat oluşturuldu:', newChat);
-          setChats(prevChats => [newChat, ...prevChats]);
-          console.log('✅ Fallback chat listesi güncellendi');
+          // Fallback chat'i de en üste ekle ve sırala
+          setChats(prevChats => {
+            const updatedChats = [newChat, ...prevChats];
+            return updatedChats.sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
+          });
         }
       }
       
@@ -665,10 +675,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setIsLoadingChats(true);
       const chats = await ApiService.getChats() as Chat[];
-      setChats(chats);
+      
+      // Chat'leri lastTime'a göre sırala - en yeni en üstte
+      const sortedChats = chats.sort((a, b) => {
+        const timeA = new Date(a.lastTime).getTime();
+        const timeB = new Date(b.lastTime).getTime();
+        return timeB - timeA; // En yeni en üstte
+      });
+      
+      setChats(sortedChats);
       
       // Cache'e kaydet
-      setChatCache({ data: chats, timestamp: Date.now() });
+      setChatCache({ data: sortedChats, timestamp: Date.now() });
       
       // Mevcut count'ları yükle (backend'ten gelen unreadCount'ları kullan)
       const initialCounts: { [chatId: string]: number } = {};
@@ -868,7 +886,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         // Listen for new messages to update chat list
         const handleNewMessageForChatList = (data: any) => {
-          console.log('🔔 New message received:', data);
           if (data.message?.senderId !== currentUser?.id) {
             // Duplicate mesaj kontrolü
             const messageId = data.message?.id;
@@ -886,117 +903,79 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const existingChat = chats.find(chat => chat.id === chatId);
             
             if (!existingChat) {
-              console.log('🆕 Creating new chat for:', data.message?.senderId);
-              // Yeni chat oluştur - gerçek kullanıcı bilgilerini al
-              getUserInfo(data.message?.senderId).then(userInfo => {
-                const newChat: Chat = {
-                  id: chatId,
-                  user1Id: currentUser?.id || '',
-                  user2Id: data.message?.senderId,
-                  lastMessage: data.message?.text || 'Resim',
-                  lastTime: new Date(data.message?.timestamp || Date.now()),
-                  unreadCount: 1,
-                  name: userInfo.name || 'Kullanıcı',
-                  avatar: userInfo.avatar || '👤',
-                  bgColor: userInfo.bgColor || '#FFB6C1',
-                  gender: userInfo.gender || 'female',
-                  otherUser: {
-                    id: data.message?.senderId,
-                    name: userInfo.name || 'Kullanıcı',
-                    avatar: userInfo.avatar || '👤',
-                    bg_color: userInfo.bgColor || '#FFB6C1',
-                    gender: userInfo.gender || 'female',
-                    is_online: userInfo.isOnline || false
-                  }
-                };
-                
-                // Chat listesini güncelle - duplicate kontrolü ile
-                setChats(prevChats => {
-                  const exists = prevChats.find(chat => chat.id === chatId);
-                  if (exists) {
-                    console.log('⚠️ Chat already exists, updating instead of creating new one');
-                    return prevChats.map(chat => 
-                      chat.id === chatId 
-                        ? { 
-                            ...chat, 
-                            lastMessage: newChat.lastMessage, 
-                            lastTime: newChat.lastTime,
-                            name: userInfo.name || chat.name,
-                            avatar: userInfo.avatar || chat.avatar,
-                            bgColor: userInfo.bgColor || chat.bgColor,
-                            gender: userInfo.gender || chat.gender,
-                            otherUser: {
-                              ...chat.otherUser,
-                              id: chat.otherUser?.id || data.message?.senderId,
-                              name: userInfo.name || chat.otherUser?.name,
-                              avatar: userInfo.avatar || chat.otherUser?.avatar,
-                              bg_color: userInfo.bgColor || chat.otherUser?.bg_color,
-                              gender: userInfo.gender || chat.otherUser?.gender,
-                              is_online: userInfo.isOnline || chat.otherUser?.is_online
-                            }
-                          }
-                        : chat
-                    );
-                  }
-                  return [newChat, ...prevChats];
-                });
-                
-                // Count'u güncelle
-                setUnreadCounts(prevCounts => {
-                  const newCounts = {
-                    ...prevCounts,
-                    [chatId]: (prevCounts[chatId] || 0) + 1
-                  };
-                  
-                  // Toplam count'ı hesapla ve badge'i güncelle
-                  const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
-                  updateBadgeCount(totalCount);
-                  
-                  return newCounts;
-                });
-              }).catch(() => {
-                // Hata durumunda varsayılan değerler
-                const newChat: Chat = {
-                  id: chatId,
-                  user1Id: currentUser?.id || '',
-                  user2Id: data.message?.senderId,
-                  lastMessage: data.message?.text || 'Resim',
-                  lastTime: new Date(data.message?.timestamp || Date.now()),
-                  unreadCount: 1,
-                  name: 'Kullanıcı',
+              // Mesajla gelen kullanıcı bilgilerini kullan
+              const senderName = data.message?.senderName || 'Kullanıcı';
+              const senderSurname = data.message?.senderSurname || '';
+              
+              // Yeni chat oluştur - mesajla gelen bilgileri kullan
+              const newChat: Chat = {
+                id: chatId,
+                user1Id: currentUser?.id || '',
+                user2Id: data.message?.senderId,
+                lastMessage: data.message?.text || 'Resim',
+                lastTime: new Date(data.message?.timestamp || Date.now()),
+                unreadCount: 1,
+                name: senderName,
+                avatar: '👤', // Varsayılan avatar
+                avatarImage: '',
+                bgColor: '#FFB6C1',
+                gender: 'female',
+                otherUser: {
+                  id: data.message?.senderId,
+                  name: senderName,
+                  surname: senderSurname,
                   avatar: '👤',
-                  bgColor: '#FFB6C1',
+                  avatar_image: '',
+                  bg_color: '#FFB6C1',
                   gender: 'female',
-                  otherUser: {
-                    id: data.message?.senderId,
-                    name: 'Kullanıcı',
-                    avatar: '👤',
-                    bg_color: '#FFB6C1',
-                    gender: 'female',
-                    is_online: false
-                  }
+                  is_online: false,
+                  last_active: new Date()
+                }
+              };
+              
+              // Chat listesini güncelle - yeni chat'i en üste ekle ve sırala
+              setChats(prevChats => {
+                const exists = prevChats.find(chat => chat.id === chatId);
+                if (exists) {
+                  return prevChats.map(chat => 
+                    chat.id === chatId 
+                      ? { 
+                          ...chat, 
+                          lastMessage: newChat.lastMessage, 
+                          lastTime: newChat.lastTime,
+                          name: senderName,
+                          otherUser: {
+                            ...chat.otherUser,
+                            id: chat.otherUser?.id || data.message?.senderId,
+                            name: senderName,
+                            surname: senderSurname
+                          }
+                        }
+                      : chat
+                  );
+                }
+                // Yeni chat'i en üste ekle ve lastTime'a göre sırala
+                const updatedChats = [newChat, ...prevChats];
+                return updatedChats.sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
+              });
+              
+              // Count'u güncelle
+              setUnreadCounts(prevCounts => {
+                const newCounts = {
+                  ...prevCounts,
+                  [chatId]: (prevCounts[chatId] || 0) + 1
                 };
                 
-                setChats(prevChats => [newChat, ...prevChats]);
+                // Toplam count'ı hesapla ve badge'i güncelle
+                const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
+                updateBadgeCount(totalCount);
                 
-                // Count'u güncelle
-                setUnreadCounts(prevCounts => {
-                  const newCounts = {
-                    ...prevCounts,
-                    [chatId]: (prevCounts[chatId] || 0) + 1
-                  };
-                  
-                  // Toplam count'ı hesapla ve badge'i güncelle
-                  const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
-                  updateBadgeCount(totalCount);
-                  
-                  return newCounts;
-                });
+                return newCounts;
               });
             } else {
-              // Mevcut chat'in lastMessage ve lastTime'ını güncelle
-              setChats(prevChats =>
-                prevChats.map(chat =>
+              // Mevcut chat'in lastMessage ve lastTime'ını güncelle ve en üste taşı
+              setChats(prevChats => {
+                const updatedChats = prevChats.map(chat =>
                   chat.id === chatId
                     ? {
                         ...chat,
@@ -1005,8 +984,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         unreadCount: chat.unreadCount + 1 // Okunmamış mesaj sayısını artır
                       }
                     : chat
-                )
-              );
+                );
+                
+                // Güncellenen chat'i en üste taşı - WhatsApp gibi sıralama
+                return updatedChats.sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
+              });
               
               // Count'u güncelle - SADECE 1 ARTIR
               setUnreadCounts(prevCounts => {
@@ -1076,7 +1058,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // MessageSent event'ini dinle (kendi mesajlarımız için)
         const handleMessageSent = (data: { messageId: string; chatId: string; message: any }) => {
-          // Kendi mesajlarımız için chat listesini güncelle (count değişmez)
+          // Kendi mesajlarımız için chat listesini güncelle ve en üste taşı (count değişmez)
           setChats(prevChats => {
             const updatedChats = prevChats.map(chat => {
               if (chat.id === data.chatId) {
@@ -1088,7 +1070,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               }
               return chat;
             });
-            return updatedChats;
+            
+            // Güncellenen chat'i en üste taşı - WhatsApp gibi sıralama
+            return updatedChats.sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
           });
         };
 
@@ -1167,10 +1151,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [currentUser?.id]);
 
-  // Kullanıcı değiştiğinde cache'i temizle
+  // Kullanıcı değiştiğinde cache'i temizle (ama chat cache'i koru)
   useEffect(() => {
     if (currentUser?.id) {
       clearUserCache();
+      // Chat cache'i temizleme - kullanıcı değiştiğinde yeni chat'ler yüklensin
+      setChatCache(null);
     }
   }, [currentUser?.id]);
 
