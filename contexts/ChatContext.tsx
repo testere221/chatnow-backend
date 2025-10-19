@@ -639,7 +639,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return newCounts;
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.log('⚠️ Mark as read failed (non-critical):', error.message);
       // Bu hata kritik değil, uygulama çalışmaya devam etsin
     }
@@ -927,6 +927,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             gender: userInfo.gender || chat.gender,
                             otherUser: {
                               ...chat.otherUser,
+                              id: chat.otherUser?.id || data.message?.senderId,
                               name: userInfo.name || chat.otherUser?.name,
                               avatar: userInfo.avatar || chat.otherUser?.avatar,
                               bg_color: userInfo.bgColor || chat.otherUser?.bg_color,
@@ -1104,6 +1105,38 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         webSocketService.on('chat_deleted', handleChatDeleted);
         webSocketService.on('newMessage', handleNewMessageForChatList);
         
+        // Chat güncellemesi için listener
+        const handleChatUpdated = (data: any) => {
+          console.log('🔄 Chat updated:', data);
+          const { chatId, lastMessage, lastTime, senderInfo } = data;
+          
+          setChats(prevChats => 
+            prevChats.map(chat => 
+              chat.id === chatId 
+                ? {
+                    ...chat,
+                    lastMessage: lastMessage,
+                    lastTime: new Date(lastTime),
+                    name: senderInfo.name,
+                    avatar: senderInfo.avatar,
+                    bgColor: senderInfo.bg_color,
+                    gender: senderInfo.gender,
+                    otherUser: {
+                      ...chat.otherUser,
+                      id: chat.otherUser?.id || senderInfo.id,
+                      name: senderInfo.name,
+                      avatar: senderInfo.avatar,
+                      bg_color: senderInfo.bg_color,
+                      gender: senderInfo.gender
+                    }
+                  }
+                : chat
+            )
+          );
+        };
+        
+        webSocketService.on('chatUpdated', handleChatUpdated);
+        
         console.log('🔌 WebSocket listeners registered');
 
         // Engellenen kullanıcıları yükle
@@ -1118,6 +1151,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           webSocketService.off('messageSent', handleMessageSent);
           webSocketService.off('chat_deleted', handleChatDeleted);
           webSocketService.off('newMessage', handleNewMessageForChatList);
+          webSocketService.off('chatUpdated', handleChatUpdated);
         };
       } catch (error) {
         // Error setting up listeners

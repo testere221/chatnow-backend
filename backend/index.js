@@ -740,6 +740,25 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
       message: messageDataWithSender.message,
       success: true
     });
+    
+    // Chat listesi güncellemesi için her iki kullanıcıya da gönder
+    const chatUpdateData = {
+      chatId: chat_id,
+      lastMessage: newMessage.text || 'Resim',
+      lastTime: newMessage.timestamp,
+      senderInfo: {
+        id: senderId,
+        name: sender?.name || 'Bilinmeyen Kullanıcı',
+        avatar: sender?.avatar || '👤',
+        avatar_image: sender?.avatar_image || '',
+        bg_color: sender?.bg_color || '#FFB6C1',
+        gender: sender?.gender || 'female'
+      }
+    };
+    
+    // Her iki kullanıcıya da chat güncellemesi gönder
+    io.to(receiverId).emit('chatUpdated', chatUpdateData);
+    io.to(senderId).emit('chatUpdated', chatUpdateData);
     // Yeni mesaj yayınlandı
 
     // Hızlı response gönder
@@ -901,6 +920,13 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
         updateFields.unread_count_user1 = 0;
         updateFields.unread_count_user2 = 1;
       }
+      
+      // Yeni chat için sender bilgilerini ekle
+      updateFields.name = sender?.name || 'Bilinmeyen Kullanıcı';
+      updateFields.avatar = sender?.avatar || '👤';
+      updateFields.avatar_image = sender?.avatar_image || '';
+      updateFields.bg_color = sender?.bg_color || '#FFB6C1';
+      updateFields.gender = sender?.gender || 'female';
     }
     
     const chat = await Chat.findOneAndUpdate(
