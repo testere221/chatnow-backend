@@ -41,7 +41,17 @@ const convertBase64ToHttpAuto = async (base64Data: string): Promise<string> => {
     return base64Data;
   }
   
-  // Base64 ise HTTP'ye çevir
+  // Eğer file:// URI ise direkt döndür
+  if (base64Data.startsWith('file://')) {
+    return base64Data;
+  }
+  
+  // Eğer content:// URI ise direkt döndür
+  if (base64Data.startsWith('content://')) {
+    return base64Data;
+  }
+  
+  // Eğer Base64 string ise HTTP'ye çevir
   try {
     console.log('🔄 Base64 otomatik HTTP\'ye çevriliyor...');
     const response = await fetch(`${API_CONFIG.BASE_URL}/api/convert-base64-to-file`, {
@@ -88,11 +98,13 @@ const MessageImageWithAutoConvert = ({ imageUrl, style }: { imageUrl: string | n
   
   useEffect(() => {
     const convertImage = async () => {
-      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:') && !imageUrl.startsWith('file://') && !imageUrl.startsWith('content://')) {
         console.log('🔄 Mesaj Base64 otomatik HTTP\'ye çevriliyor...');
         const httpUrl = await convertBase64ToHttpAuto(imageUrl);
         setImageUri(httpUrl);
         console.log('✅ Mesaj HTTP URL güncellendi:', httpUrl);
+      } else {
+        setImageUri(imageUrl || '');
       }
     };
     
