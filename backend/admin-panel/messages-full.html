@@ -311,12 +311,23 @@
         function startPolling() {
             if (pollingInterval) return;
             
-            console.log('Polling modu başlatıldı');
+            console.log('Polling modu başlatıldı - WebSocket çalışmıyor');
             pollingInterval = setInterval(() => {
                 if (selectedBotId) {
                     loadConversations();
                 }
             }, 2000); // 2 saniyede bir güncelle
+        }
+        
+        // WebSocket durumunu kontrol et
+        function checkWebSocketStatus() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                if (!usePolling) {
+                    console.log('WebSocket kapalı, polling moduna geçiliyor...');
+                    usePolling = true;
+                    startPolling();
+                }
+            }
         }
 
         // WebSocket mesajlarını işle
@@ -417,6 +428,9 @@
             if (selectedBotId) {
                 document.getElementById('chatContainer').style.display = 'flex';
                 loadConversations();
+                
+                // WebSocket durumunu kontrol et
+                checkWebSocketStatus();
             } else {
                 document.getElementById('chatContainer').style.display = 'none';
             }
@@ -580,7 +594,19 @@
 
         // Load on start
         loadBots();
-        connectWebSocket();
+        
+        // WebSocket'i dene, çalışmazsa polling başlat
+        setTimeout(() => {
+            connectWebSocket();
+            // 3 saniye sonra WebSocket çalışmadıysa polling başlat
+            setTimeout(() => {
+                if (usePolling === false && !socket) {
+                    console.log('WebSocket başlatılamadı, polling moduna geçiliyor...');
+                    usePolling = true;
+                    startPolling();
+                }
+            }, 3000);
+        }, 1000);
     </script>
 </body>
 </html>
