@@ -79,8 +79,12 @@ export default function Chats() {
                 const status = blockingStatus[chat.id];
                 if (status?.isBlockedByMe) return 'Engellenen Kullanıcı';
                 if (status?.isBlockedByOther) return 'Bu kullanıcı sizi engelledi';
-                const otherUserName = chat.otherUser?.name || 'Kullanıcı';
-                console.log(`📱 Chats ekranı isim: ${otherUserName} (${chat.id}) - otherUser:`, chat.otherUser);
+                
+                // getUserState ile doğru veriyi al
+                const otherUserId = parts[0] === authUser?.id ? parts[1] : parts[0];
+                const userState = getUserState(otherUserId);
+                const otherUserName = userState?.name || chat.otherUser?.name || 'Kullanıcı';
+                console.log(`📱 Chats ekranı isim (2): ${otherUserName} (${chat.id}) - userState:`, userState);
                 return otherUserName;
               })()}
             </Text>
