@@ -2653,7 +2653,11 @@ app.put('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
     if (about !== undefined) user.about = about;
     if (hobbies !== undefined) user.hobbies = hobbies;
     if (diamonds !== undefined) user.diamonds = diamonds;
-    if (avatar !== undefined) user.avatar = avatar;
+    if (avatar !== undefined) {
+      user.avatar = avatar;
+      // Mobile client bazı yerlerde avatar_image alanını kullanıyor
+      user.avatar_image = avatar;
+    }
 
     await user.save();
     res.json({ success: true, user });
