@@ -54,7 +54,7 @@ export default function Chats() {
         }}
         activeOpacity={0.7}
         accessibilityRole="button"
-        accessibilityLabel={`${chat.name} ile sohbet`}
+        accessibilityLabel={`${chat.otherUser?.name || 'Kullanıcı'} ile sohbet`}
       >
         <View style={styles.avatarContainer}>
           <View style={[styles.avatar, { backgroundColor: chat.bgColor || '#FFB6C1' }]}>
@@ -75,11 +75,13 @@ export default function Chats() {
             <Text style={styles.chatName}>
               {(() => {
                 const parts = chat.id.split('_');
-                if (!authUser?.id) return chat.name;
+                if (!authUser?.id) return chat.otherUser?.name || 'Kullanıcı';
                 const status = blockingStatus[chat.id];
                 if (status?.isBlockedByMe) return 'Engellenen Kullanıcı';
                 if (status?.isBlockedByOther) return 'Bu kullanıcı sizi engelledi';
-                return chat.name;
+                const otherUserName = chat.otherUser?.name || 'Kullanıcı';
+                console.log(`📱 Chats ekranı isim: ${otherUserName} (${chat.id})`);
+                return otherUserName;
               })()}
             </Text>
             <View style={styles.chatMeta}>
@@ -599,11 +601,13 @@ export default function Chats() {
                             <Text style={styles.chatName}>
                               {(() => {
                                 const parts = chat.id.split('_');
-                                if (!authUser?.id) return chat.name;
+                                if (!authUser?.id) return chat.otherUser?.name || 'Kullanıcı';
                                 const status = blockingStatus[chat.id];
                                 if (status?.isBlockedByMe) return 'Engellenen Kullanıcı';
                                 if (status?.isBlockedByOther) return 'Bu kullanıcı sizi engelledi';
-                                return chat.name;
+                                const otherUserName = chat.otherUser?.name || 'Kullanıcı';
+                                console.log(`📱 Chats ekranı isim (2): ${otherUserName} (${chat.id})`);
+                                return otherUserName;
                               })()}
                             </Text>
                             <View style={styles.chatMeta}>

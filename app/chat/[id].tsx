@@ -6,20 +6,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_CONFIG, ApiService } from '../../config/api';
@@ -152,10 +152,20 @@ const MessageImageWithAutoConvert = ({ imageUrl, style }: { imageUrl: string | n
   );
 };
 
-const getUserData = (userId: string) => ({
-  id: userId, name: 'Kullanıcı', surname: '', avatar: '👤', avatar_image: '', bg_color: '#999', gender: 'female',
-  last_active: new Date().toISOString(), is_online: false,
-});
+const getUserData = (userId: string) => {
+  console.log(`📱 getUserData (default): Kullanıcı (${userId})`);
+  return {
+    id: userId,
+    name: 'Kullanıcı',
+    surname: '',
+    avatar: '👤',
+    avatar_image: '',
+    bg_color: '#999',
+    gender: 'female',
+    last_active: new Date().toISOString(),
+    is_online: false,
+  };
+};
 
 export default function ChatDetail() {
   const params = useLocalSearchParams();
@@ -176,7 +186,11 @@ export default function ChatDetail() {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [chatUser, setChatUser] = useState<any>(getUserData(id));
+  const [chatUser, setChatUser] = useState<any>(() => {
+    const initialData = getUserData(id);
+    console.log(`📱 Initial chatUser: ${initialData?.name || 'BULUNAMADI'} (${id})`);
+    return initialData;
+  });
   const [isBlocked, setIsBlocked] = useState(false);
   const [isBlockedBy, setIsBlockedBy] = useState(false);
 
@@ -197,6 +211,25 @@ export default function ChatDetail() {
   const anyModalOpen = showInsufficientTokensModal || showBlockModal || showDeleteModal || showImageModal || showMenu;
   const modalOpenRef = useRef(false);
   useEffect(() => { modalOpenRef.current = anyModalOpen; }, [anyModalOpen]);
+
+  // Component mount olduğunda chatUser'ı güncelle
+  useEffect(() => {
+    const userState = getUserState(id);
+    if (userState) {
+      console.log(`📱 useEffect (getUserState): ${userState.name} (${id})`);
+      setChatUser({
+        id: id,
+        name: userState.name || 'Kullanıcı',
+        surname: userState.surname || '',
+        avatar: userState.avatar || '👤',
+        avatar_image: userState.avatarImage || '',
+        bg_color: userState.bgColor || '#999',
+        gender: userState.gender || 'female',
+        last_active: userState.lastSeen?.toISOString() || new Date().toISOString(),
+        is_online: userState.isOnline || false,
+      });
+    }
+  }, [id, getUserState]);
 
   const listRef = useRef<FlatList<Msg>>(null);
   const textInputRef = useRef<TextInput>(null);
@@ -348,6 +381,7 @@ export default function ChatDetail() {
       try {
         const userInfo = await getUserInfo(id, true);
         if (userInfo) {
+          console.log(`📱 setChatUser (getUserInfo): ${userInfo.name} (${userInfo.id})`);
           setChatUser({
             id: userInfo.id || userInfo._id,
             name: userInfo.name, surname: userInfo.surname,
@@ -368,6 +402,7 @@ export default function ChatDetail() {
     
         const handleUserInfoUpdate = (data: { userId: string; userInfo: any }) => {
           if (data.userId === id) {
+            console.log(`📱 setChatUser (WebSocket): ${data.userInfo.name} (${data.userId})`);
             setChatUser((prev: any) => ({
               ...prev,
               name: data.userInfo.name || prev.name,
@@ -390,6 +425,7 @@ export default function ChatDetail() {
       try {
         const userInfo = await getUserInfo(id, true);
         if (userInfo) {
+          console.log(`📱 setChatUser (periyodik): ${userInfo.name} (${userInfo.id})`);
           setChatUser((prev: any) => ({
             ...prev,
             name: userInfo.name || prev.name,
@@ -644,7 +680,9 @@ export default function ChatDetail() {
                 if (isBlockedBy) return 'Bu kullanıcı sizi engelledi';
                 const name = chatUser?.name || '';
                 const surname = chatUser?.surname || '';
-                return surname ? `${name} ${surname}`.trim() : name || '';
+                const fullName = surname ? `${name} ${surname}`.trim() : name || '';
+                console.log(`📱 Chat ekranı isim: ${fullName} (${chatUser?.id})`);
+                return fullName;
               })()}
             </Text>
             <Text style={styles.userStatus}>
