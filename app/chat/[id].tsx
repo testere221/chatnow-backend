@@ -216,7 +216,7 @@ export default function ChatDetail() {
   useEffect(() => {
     const userState = getUserState(id);
     if (userState) {
-      console.log(`📱 useEffect (getUserState): ${userState.name} (${id})`);
+      console.log(`📱 useEffect (getUserState): ${userState.name} (${id}) - userState:`, userState);
       setChatUser({
         id: id,
         name: userState.name || 'Kullanıcı',

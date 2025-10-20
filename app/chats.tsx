@@ -80,7 +80,7 @@ export default function Chats() {
                 if (status?.isBlockedByMe) return 'Engellenen Kullanıcı';
                 if (status?.isBlockedByOther) return 'Bu kullanıcı sizi engelledi';
                 const otherUserName = chat.otherUser?.name || 'Kullanıcı';
-                console.log(`📱 Chats ekranı isim: ${otherUserName} (${chat.id})`);
+                console.log(`📱 Chats ekranı isim: ${otherUserName} (${chat.id}) - otherUser:`, chat.otherUser);
                 return otherUserName;
               })()}
             </Text>
