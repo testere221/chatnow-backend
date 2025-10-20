@@ -203,8 +203,10 @@ class ImageCacheService {
    * Belirli bir kullanıcının profil resmi cache'ini temizle
    */
   static clearProfileImageCache(userId: string): void {
-    const key = `profile_${userId}`;
-    this.cache.delete(key);
+    const profileKey = `profile_${userId}`;
+    const httpKey = `http_${userId}`;
+    this.cache.delete(profileKey);
+    this.cache.delete(httpKey);
     console.log(`✅ ImageCache: Profil resmi cache temizlendi - ${userId}`);
   }
 

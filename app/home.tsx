@@ -65,7 +65,7 @@ const ProfileCard = memo(
                 uri={avatarUri}
                 style={[styles.profileImageSource, { height: imageHeight }]}
                 resizeMode="cover"
-                cacheKey={`profile_${user.id}`}
+                cacheKey={avatarUri.startsWith('http') ? `http_${user.id}` : `profile_${user.id}`}
                 preload={true}
               />
             </View>

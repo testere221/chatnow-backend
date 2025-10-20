@@ -29,8 +29,19 @@ const OptimizedImage = memo<OptimizedImageProps>(({
   // Cache'den resmi al
   const cachedUri = useMemo(() => {
     if (cacheKey) {
-      const cached = ImageCacheService.getProfileImage(cacheKey, uri);
-      return cached;
+      // HTTP URL'leri için farklı cache stratejisi
+      if (uri.startsWith('http')) {
+        const cached = ImageCacheService.getImage(cacheKey);
+        if (cached) {
+          return cached.uri;
+        }
+        // Cache'de yoksa HTTP URL'yi direkt kullan
+        return uri;
+      } else {
+        // Base64 resimler için mevcut strateji
+        const cached = ImageCacheService.getProfileImage(cacheKey, uri);
+        return cached;
+      }
     }
     return uri;
   }, [uri, cacheKey]);
@@ -39,8 +50,20 @@ const OptimizedImage = memo<OptimizedImageProps>(({
   const handleLoad = useCallback(() => {
     setLoading(false);
     setError(false);
+    
+    // HTTP URL'leri için cache'e kaydet
+    if (cacheKey && uri.startsWith('http')) {
+      ImageCacheService.setImage(cacheKey, {
+        uri: uri,
+        timestamp: Date.now(),
+        size: 0,
+        width: 200,
+        height: 200
+      });
+    }
+    
     onLoad?.();
-  }, [onLoad]);
+  }, [onLoad, cacheKey, uri]);
 
   // Resim hatası
   const handleError = useCallback((error: any) => {
