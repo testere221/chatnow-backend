@@ -4,13 +4,13 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy backend package files
-COPY backend/package*.json ./
+COPY backend/package.json backend/package-lock.json ./
 
 # Install dependencies
 RUN npm ci --omit=dev
 
-# Copy backend source code
-COPY backend/ ./
+# Copy all backend source code
+COPY backend ./
 
 # Runtime
 FROM node:20-alpine
