@@ -142,9 +142,21 @@ app.use('/uploads', express.static('uploads')); // URL encoded limit
 // Static files serving for HTML pages
 app.use(express.static('.'));
 
-// Admin Panel route
+// Admin Panel routes
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-panel', 'index.html'));
+});
+
+app.get('/admin/users.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin-panel', 'users.html'));
+});
+
+app.get('/admin/messages.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin-panel', 'messages.html'));
+});
+
+app.get('/admin/style.css', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin-panel', 'style.css'));
 });
 
 // Handle preflight requests

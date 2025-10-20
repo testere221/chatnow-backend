@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesajlar - Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>💬 Mesaj Yönetimi</h2>
+            <div class="user-info">
+                <span id="adminUsername"></span>
+                <button class="btn btn-logout" id="logoutBtn">Çıkış</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="nav-tabs">
+                <a href="/admin" class="tab">💎 Paketler</a>
+                <a href="/admin/users.html" class="tab">👥 Kullanıcılar</a>
+                <a href="/admin/messages.html" class="tab active">💬 Mesajlar</a>
+            </div>
+
+            <div style="padding: 60px; text-align: center;">
+                <h3 style="color: #667eea; margin-bottom: 20px;">🚧 Yakında Gelecek!</h3>
+                <p style="color: #666; font-size: 16px; margin-bottom: 30px;">
+                    Mesajlaşma özelliği şu anda geliştiriliyor.
+                </p>
+                <div style="background: #f3f4f6; padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto;">
+                    <h4 style="color: #333; margin-bottom: 15px;">📋 Gelecek Özellikler:</h4>
+                    <ul style="text-align: left; color: #666; line-height: 2;">
+                        <li>✅ Destek bot sohbetlerini görüntüleme</li>
+                        <li>✅ Kullanıcılarla mesajlaşma</li>
+                        <li>✅ Gerçek zamanlı bildirimler</li>
+                        <li>✅ Mesaj arama ve filtreleme</li>
+                    </ul>
+                </div>
+                <div style="margin-top: 30px;">
+                    <a href="/admin/users.html" class="btn btn-primary">👥 Kullanıcılara Dön</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const authToken = localStorage.getItem('adminToken');
+        if (!authToken) {
+            window.location.href = '/admin';
+        }
+
+        document.getElementById('adminUsername').textContent = localStorage.getItem('adminUsername') || 'Admin';
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUsername');
+            window.location.href = '/admin';
+        });
+    </script>
+</body>
+</html>
+
