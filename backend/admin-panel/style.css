@@ -134,6 +134,15 @@ body {
     border-color: #667eea;
 }
 
+.bot-selection {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;

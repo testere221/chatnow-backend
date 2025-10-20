@@ -2621,19 +2621,25 @@ app.get('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Update user (add/remove diamonds, ban, etc.)
+// Update user (full profile editing)
 app.put('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
   try {
-    const { diamonds } = req.body;
+    const { name, surname, age, location, about, hobbies, diamonds, avatar } = req.body;
     const user = await User.findById(req.params.id);
 
     if (!user) {
       return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
     }
 
-    if (diamonds !== undefined) {
-      user.diamonds = diamonds;
-    }
+    // Update fields if provided
+    if (name !== undefined) user.name = name;
+    if (surname !== undefined) user.surname = surname;
+    if (age !== undefined) user.age = age;
+    if (location !== undefined) user.location = location;
+    if (about !== undefined) user.about = about;
+    if (hobbies !== undefined) user.hobbies = hobbies;
+    if (diamonds !== undefined) user.diamonds = diamonds;
+    if (avatar !== undefined) user.avatar = avatar;
 
     await user.save();
     res.json({ success: true, user });

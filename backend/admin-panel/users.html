@@ -76,18 +76,49 @@
 
     <!-- Edit User Modal -->
     <div id="editModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
-                <h3>Kullanıcı Düzenle</h3>
+                <h3>👤 Kullanıcı Düzenle</h3>
             </div>
             <form id="editForm">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>İsim *</label>
+                        <input type="text" id="editName" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Soyisim</label>
+                        <input type="text" id="editSurname">
+                    </div>
+                    <div class="input-group">
+                        <label>Yaş *</label>
+                        <input type="number" id="editAge" required min="18" max="100">
+                    </div>
+                    <div class="input-group">
+                        <label>Şehir *</label>
+                        <input type="text" id="editLocation" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Jeton Miktarı</label>
+                        <input type="number" id="editDiamonds" required min="0">
+                    </div>
+                    <div class="input-group">
+                        <label>Profil Resmi URL</label>
+                        <input type="url" id="editAvatar" placeholder="https://...">
+                    </div>
+                </div>
                 <div class="input-group">
-                    <label>Jeton Miktarı</label>
-                    <input type="number" id="editDiamonds" required min="0">
+                    <label>Hakkında</label>
+                    <textarea id="editAbout" rows="3" placeholder="Kullanıcı hakkında..."></textarea>
+                </div>
+                <div class="input-group">
+                    <label>Hobiler (virgülle ayır)</label>
+                    <input type="text" id="editHobbies" placeholder="Müzik, Spor, Sinema">
+                    <small style="color: #999; font-size: 12px;">Örnek: Müzik, Spor, Sinema</small>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" id="closeEditModalBtn">İptal</button>
-                    <button type="submit" class="btn btn-success">Kaydet</button>
+                    <button type="submit" class="btn btn-success">💾 Kaydet</button>
                 </div>
             </form>
         </div>
@@ -216,12 +247,36 @@
         });
 
         // Edit User
-        document.getElementById('usersBody').addEventListener('click', (e) => {
+        document.getElementById('usersBody').addEventListener('click', async (e) => {
             if (e.target.classList.contains('edit-user-btn')) {
                 editingUserId = e.target.getAttribute('data-id');
-                const diamonds = e.target.getAttribute('data-diamonds');
-                document.getElementById('editDiamonds').value = diamonds;
-                document.getElementById('editModal').style.display = 'flex';
+                
+                try {
+                    // Fetch full user data
+                    const response = await fetch(`${API_URL}/api/admin/users/${editingUserId}`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+
+                    if (response.ok) {
+                        const user = await response.json();
+                        
+                        // Fill form
+                        document.getElementById('editName').value = user.name || '';
+                        document.getElementById('editSurname').value = user.surname || '';
+                        document.getElementById('editAge').value = user.age || 18;
+                        document.getElementById('editLocation').value = user.location || '';
+                        document.getElementById('editDiamonds').value = user.diamonds || 0;
+                        document.getElementById('editAvatar').value = user.avatar || '';
+                        document.getElementById('editAbout').value = user.about || '';
+                        document.getElementById('editHobbies').value = Array.isArray(user.hobbies) ? user.hobbies.join(', ') : '';
+                        
+                        document.getElementById('editModal').style.display = 'flex';
+                    } else {
+                        alert('Kullanıcı bilgileri yüklenemedi');
+                    }
+                } catch (error) {
+                    alert('Hata oluştu');
+                }
             }
         });
 
@@ -232,7 +287,19 @@
         document.getElementById('editForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const diamonds = parseInt(document.getElementById('editDiamonds').value);
+            const hobbiesText = document.getElementById('editHobbies').value;
+            const hobbies = hobbiesText ? hobbiesText.split(',').map(h => h.trim()).filter(h => h) : [];
+
+            const userData = {
+                name: document.getElementById('editName').value,
+                surname: document.getElementById('editSurname').value,
+                age: parseInt(document.getElementById('editAge').value),
+                location: document.getElementById('editLocation').value,
+                diamonds: parseInt(document.getElementById('editDiamonds').value),
+                avatar: document.getElementById('editAvatar').value,
+                about: document.getElementById('editAbout').value,
+                hobbies: hobbies
+            };
 
             try {
                 const response = await fetch(`${API_URL}/api/admin/users/${editingUserId}`, {
@@ -241,18 +308,19 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${authToken}`
                     },
-                    body: JSON.stringify({ diamonds })
+                    body: JSON.stringify(userData)
                 });
 
                 if (response.ok) {
                     document.getElementById('editModal').style.display = 'none';
                     loadUsers();
-                    alert('Kullanıcı güncellendi!');
+                    alert('✅ Kullanıcı başarıyla güncellendi!');
                 } else {
-                    alert('Güncelleme başarısız');
+                    const data = await response.json();
+                    alert('❌ Güncelleme başarısız: ' + (data.error || 'Bilinmeyen hata'));
                 }
             } catch (error) {
-                alert('Hata oluştu');
+                alert('❌ Hata oluştu: ' + error.message);
             }
         });
 
