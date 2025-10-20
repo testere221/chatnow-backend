@@ -202,7 +202,14 @@
             botList.innerHTML = bots.map(bot => `
                 <div class="bot-card">
                     <div class="bot-avatar">
-                        <img src="${bot.avatar_image || 'data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text y=\".9em\" font-size=\"90\">🤖</text></svg>'}" alt="${bot.name}" class="bot-avatar-img">
+                        <img src="${bot.avatar_image ? 
+                            (bot.avatar_image.startsWith('data:') ? 
+                                bot.avatar_image : 
+                                bot.avatar_image.includes('/uploads/') ? 
+                                    bot.avatar_image.replace('/uploads/', '/api/admin/thumbnail/') : 
+                                    bot.avatar_image) : 
+                            'data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text y=\".9em\" font-size=\"90\">🤖</text></svg>'}" 
+                             alt="${bot.name}" class="bot-avatar-img">
                         <input type="file" id="botAvatar_${bot._id}" accept="image/*" style="display: none;">
                         <button class="btn btn-sm btn-primary" data-bot-id="${bot._id}">Resim Değiştir</button>
                     </div>
@@ -283,12 +290,14 @@
                 <tr>
                     <td>
                         ${user.avatar_image ? 
-                            `<img src="${user.avatar_image.startsWith('data:') ? user.avatar_image : user.avatar_image}" 
+                            `<img src="${user.avatar_image.startsWith('data:') ? 
+                                user.avatar_image : 
+                                user.avatar_image.includes('/uploads/') ? 
+                                    user.avatar_image.replace('/uploads/', '/api/admin/thumbnail/') : 
+                                    user.avatar_image}" 
                                   style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;"
                                   class="user-avatar-img"
-                                  loading="lazy"
-                                  onload="this.style.opacity='1'"
-                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` :
+                                  loading="lazy">` :
                             `<div style="width: 40px; height: 40px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 18px;">
                                 ${user.gender === 'male' ? '👨' : '👩'}
                              </div>`
@@ -503,8 +512,7 @@
             } else if (e.target.classList.contains('user-avatar-img')) {
                 // Sadece bir kez fallback yap
                 if (!e.target.dataset.fallbackApplied) {
-                    const userName = e.target.closest('tr').querySelector('td:nth-child(2) strong').textContent.split(' ')[0];
-                    e.target.src = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">👤</text></svg>`;
+                    e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">👤</text></svg>';
                     e.target.dataset.fallbackApplied = 'true';
                 }
             }

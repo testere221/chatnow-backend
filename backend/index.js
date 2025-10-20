@@ -2424,6 +2424,38 @@ app.post('/api/admin/upload', authenticateAdmin, upload.single('file'), async (r
   }
 });
 
+// Admin panel için küçük resim endpoint'i
+app.get('/api/admin/thumbnail/:filename', async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Orijinal resim dosyasının yolu
+    const originalPath = path.join(__dirname, 'uploads', filename);
+    
+    // Dosya var mı kontrol et
+    if (!fs.existsSync(originalPath)) {
+      return res.status(404).json({ error: 'Resim bulunamadı' });
+    }
+    
+    // Resim boyutunu küçült (40x40px)
+    const sharp = require('sharp');
+    const thumbnailBuffer = await sharp(originalPath)
+      .resize(40, 40, { fit: 'cover' })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+    
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=3600'); // 1 saat cache
+    res.send(thumbnailBuffer);
+    
+  } catch (error) {
+    console.error('Thumbnail error:', error);
+    res.status(500).json({ error: 'Thumbnail oluşturulamadı' });
+  }
+});
+
 // TEMPORARY: Setup admin (only runs once)
 app.get('/api/setup-admin', async (req, res) => {
   try {
