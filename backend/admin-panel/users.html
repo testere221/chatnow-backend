@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kullanıcı Yönetimi - Admin Panel</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👥</text></svg>">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -203,7 +204,7 @@
                     <div class="bot-avatar">
                         <img src="${bot.avatar_image || '/uploads/default-avatar.png'}" alt="${bot.name}" onerror="this.src='/uploads/default-avatar.png'">
                         <input type="file" id="botAvatar_${bot._id}" accept="image/*" style="display: none;">
-                        <button class="btn btn-sm btn-primary" onclick="document.getElementById('botAvatar_${bot._id}').click()">Resim Değiştir</button>
+                        <button class="btn btn-sm btn-primary" data-bot-id="${bot._id}">Resim Değiştir</button>
                     </div>
                     <div class="bot-info">
                         <h4>${bot.name}</h4>
@@ -281,8 +282,14 @@
             tbody.innerHTML = users.map(user => `
                 <tr>
                     <td>
-                        <img src="${user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name)}" 
-                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                        ${user.avatar_image ? 
+                            `<img src="${user.avatar_image}" 
+                                  style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;"
+                                  onerror="this.src='https://ui-avatars.com/api/?name=' + encodeURIComponent('${user.name}')">` :
+                            `<div style="width: 40px; height: 40px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                                ${user.gender === 'male' ? '👨' : '👩'}
+                             </div>`
+                        }
                     </td>
                     <td><strong>${user.name} ${user.surname || ''}</strong></td>
                     <td>${user.email}</td>
@@ -471,6 +478,17 @@
                 }
             } catch (error) {
                 statusEl.textContent = 'Hata: ' + error.message;
+            }
+        });
+
+        // Bot resim değiştirme event listener'ları
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('[data-bot-id]')) {
+                const botId = e.target.getAttribute('data-bot-id');
+                const fileInput = document.getElementById(`botAvatar_${botId}`);
+                if (fileInput) {
+                    fileInput.click();
+                }
             }
         });
 

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View, Image } from 'react-native';
+import { FlatList, Image, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CountBadge from '../components/CountBadge';
 import OptimizedImage from '../components/OptimizedImage';
@@ -12,9 +12,9 @@ import { ApiService } from '../config/api';
 import { User as AppUser } from '../contexts/AuthContext';
 import { useChat } from '../contexts/ChatContext';
 import { useProfile } from '../contexts/ProfileContext';
-import { NavigationHelper } from '../utils/NavigationHelper';
-import { webSocketService } from '../services/websocket';
 import ImageCacheService from '../services/ImageCacheService';
+import { webSocketService } from '../services/websocket';
+import { NavigationHelper } from '../utils/NavigationHelper';
 
 /** Types coming from API */
 type PaginatedUsers = {
@@ -69,10 +69,10 @@ const ProfileCard = memo(
                   style={[styles.profileImageSource, { height: imageHeight }]}
                   resizeMode="cover"
                   onError={(error) => {
-                    console.log('❌ Home: HTTP resim yüklenemedi:', avatarUri, error);
+                    // console.log('❌ Home: HTTP resim yüklenemedi:', avatarUri, error);
                   }}
                   onLoad={() => {
-                    console.log('✅ Home: HTTP resim yüklendi:', avatarUri);
+                    // console.log('✅ Home: HTTP resim yüklendi:', avatarUri);
                   }}
                 />
               ) : (
@@ -246,17 +246,17 @@ export default function Home() {
     if (!currentUser?.id) return;
 
     const handleProfileUpdate = (data: { userId: string; updatedFields: any }) => {
-      console.log('🔄 Profil güncellendi (Home):', data);
-      console.log('🔄 ImageCacheService:', ImageCacheService);
+      // console.log('🔄 Profil güncellendi (Home):', data);
+      // console.log('🔄 ImageCacheService:', ImageCacheService);
       
       // Profil resmi değiştiyse cache'i temizle
       if (data.updatedFields.avatar || data.updatedFields.avatar_image) {
-        console.log('🔄 Cache temizleniyor için userId:', data.userId);
+        // console.log('🔄 Cache temizleniyor için userId:', data.userId);
         try {
           ImageCacheService.clearProfileImageCache(data.userId);
-          console.log('✅ Cache temizlendi');
+          // console.log('✅ Cache temizlendi');
         } catch (error) {
-          console.error('❌ Cache temizleme hatası:', error);
+          // console.error('❌ Cache temizleme hatası:', error);
         }
       }
       

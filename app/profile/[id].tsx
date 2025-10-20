@@ -220,10 +220,10 @@ export default function UserProfile() {
                   loadingIndicatorSource={require('../../assets/images/icon.png')}
                   progressiveRenderingEnabled={true}
                   onError={(error) => {
-                    console.log('❌ Profile: Resim yüklenemedi:', user.avatar_image, error);
+                    // console.log('❌ Profile: Resim yüklenemedi:', user.avatar_image, error);
                   }}
                   onLoad={() => {
-                    console.log('✅ Profile: Resim yüklendi:', user.avatar_image);
+                    // console.log('✅ Profile: Resim yüklendi:', user.avatar_image);
                   }}
                 />
               ) : user.avatar ? (

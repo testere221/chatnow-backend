@@ -207,7 +207,7 @@ class ImageCacheService {
     const httpKey = `http_${userId}`;
     this.cache.delete(profileKey);
     this.cache.delete(httpKey);
-    console.log(`✅ ImageCache: Profil resmi cache temizlendi - ${userId}`);
+    // console.log(`✅ ImageCache: Profil resmi cache temizlendi - ${userId}`);
   }
 
   /**

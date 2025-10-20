@@ -2683,7 +2683,7 @@ app.put('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
       }
     });
 
-    console.log('✅ Admin Panel: WebSocket event gönderildi');
+    // console.log('✅ Admin Panel: WebSocket event gönderildi');
 
     res.json({ success: true, user });
   } catch (error) {

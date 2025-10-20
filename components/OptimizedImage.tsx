@@ -57,15 +57,15 @@ const OptimizedImage = memo<OptimizedImageProps>(({
         url.pathname.toLowerCase().includes(ext)
       );
       
-      console.log('🔄 HTTP URL kontrolü:', {
-        url: uri,
-        hasValidExtension,
-        pathname: url.pathname
-      });
+      // console.log('🔄 HTTP URL kontrolü:', {
+      //   url: uri,
+      //   hasValidExtension,
+      //   pathname: url.pathname
+      // });
       
       return hasValidExtension;
     } catch (error) {
-      console.error('❌ HTTP URL geçersiz:', uri, error);
+      // console.error('❌ HTTP URL geçersiz:', uri, error);
       return false;
     }
   }, [uri]);
@@ -125,11 +125,11 @@ const OptimizedImage = memo<OptimizedImageProps>(({
   ));
 
   if (error || !isValidHttpUrl) {
-    console.log('❌ OptimizedImage: Resim gösterilemiyor', {
-      error,
-      isValidHttpUrl,
-      uri: uri.substring(0, 100) + '...'
-    });
+    // console.log('❌ OptimizedImage: Resim gösterilemiyor', {
+    //   error,
+    //   isValidHttpUrl,
+    //   uri: uri.substring(0, 100) + '...'
+    // });
     return <ErrorPlaceholder />;
   }
 

@@ -558,10 +558,10 @@ export default function Chats() {
                                     }} 
                                     style={styles.avatarImage}
                                     onError={(error) => {
-                                      console.log('❌ Chats: Resim yüklenemedi:', chat.avatarImage, error);
+                                      // console.log('❌ Chats: Resim yüklenemedi:', chat.avatarImage, error);
                                     }}
                                     onLoad={() => {
-                                      console.log('✅ Chats: Resim yüklendi:', chat.avatarImage);
+                                      // console.log('✅ Chats: Resim yüklendi:', chat.avatarImage);
                                     }}
                                   />
                                 );

@@ -6,20 +6,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Image,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_CONFIG, ApiService } from '../../config/api';
@@ -612,10 +612,10 @@ export default function ChatDetail() {
                   style={styles.avatarImage}
                   resizeMode="cover"
                   onError={(error) => {
-                    console.log('❌ Chat: Resim yüklenemedi:', chatUser.avatar_image, error);
+                    // console.log('❌ Chat: Resim yüklenemedi:', chatUser.avatar_image, error);
                   }}
                   onLoad={() => {
-                    console.log('✅ Chat: Resim yüklendi:', chatUser.avatar_image);
+                    // console.log('✅ Chat: Resim yüklendi:', chatUser.avatar_image);
                   }}
                 />
               ) : (

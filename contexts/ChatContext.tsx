@@ -1150,12 +1150,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
           // Profil resmi değiştiyse cache'i temizle
           if (data.updatedFields.avatar || data.updatedFields.avatar_image) {
-            console.log('🔄 ChatContext: Cache temizleniyor için userId:', data.userId);
+            // console.log('🔄 ChatContext: Cache temizleniyor için userId:', data.userId);
             try {
               ImageCacheService.clearProfileImageCache(data.userId);
-              console.log('✅ ChatContext: Cache temizlendi');
+              // console.log('✅ ChatContext: Cache temizlendi');
             } catch (error) {
-              console.error('❌ ChatContext: Cache temizleme hatası:', error);
+              // console.error('❌ ChatContext: Cache temizleme hatası:', error);
             }
           }
         };

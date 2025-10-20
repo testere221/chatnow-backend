@@ -279,10 +279,10 @@ export default function EditProfile() {
                   }} 
                   style={styles.profileImage}
                   onError={(error) => {
-                    console.log('❌ Edit: Mevcut profil resmi yüklenemedi:', currentUser.avatarImage, error);
+                    // console.log('❌ Edit: Mevcut profil resmi yüklenemedi:', currentUser.avatarImage, error);
                   }}
                   onLoad={() => {
-                    console.log('✅ Edit: Mevcut profil resmi yüklendi:', currentUser.avatarImage);
+                    // console.log('✅ Edit: Mevcut profil resmi yüklendi:', currentUser.avatarImage);
                   }}
                 />
               ) : (

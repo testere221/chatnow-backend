@@ -116,10 +116,10 @@ export default function OwnProfile() {
                     }}
                     style={styles.avatar}
                     onError={(error) => {
-                      console.log('❌ OwnProfile: Resim yüklenemedi:', currentUser.avatarImage, error);
+                      // console.log('❌ OwnProfile: Resim yüklenemedi:', currentUser.avatarImage, error);
                     }}
                     onLoad={() => {
-                      console.log('✅ OwnProfile: Resim yüklendi:', currentUser.avatarImage);
+                      // console.log('✅ OwnProfile: Resim yüklendi:', currentUser.avatarImage);
                     }}
                   />
                 ) : (
