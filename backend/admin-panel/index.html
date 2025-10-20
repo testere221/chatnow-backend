@@ -338,7 +338,7 @@
             <h2>💎 Jeton Paket Yönetimi</h2>
             <div class="user-info">
                 <span id="adminUsername"></span>
-                <button class="btn btn-logout" onclick="logout()">Çıkış</button>
+                <button class="btn btn-logout" id="logoutBtn">Çıkış</button>
             </div>
         </div>
 
@@ -357,7 +357,7 @@
             <div class="packages-section">
                 <div class="packages-header">
                     <h3>Jeton Paketleri</h3>
-                    <button class="btn btn-success" onclick="showAddModal()">+ Yeni Paket Ekle</button>
+                    <button class="btn btn-success" id="addPackageBtn">+ Yeni Paket Ekle</button>
                 </div>
 
                 <table id="packagesTable">
@@ -418,7 +418,7 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" onclick="closeModal()">İptal</button>
+                    <button type="button" class="btn btn-danger" id="closeModalBtn">İptal</button>
                     <button type="submit" class="btn btn-success">Kaydet</button>
                 </div>
             </form>
@@ -535,8 +535,8 @@
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-primary btn-small" onclick="editPackage('${pkg._id}')">Düzenle</button>
-                            <button class="btn btn-danger btn-small" onclick="deletePackage('${pkg._id}')">Sil</button>
+                            <button class="btn btn-primary btn-small edit-btn" data-id="${pkg._id}">Düzenle</button>
+                            <button class="btn btn-danger btn-small delete-btn" data-id="${pkg._id}">Sil</button>
                         </div>
                     </td>
                 </tr>
@@ -647,6 +647,22 @@
         document.getElementById('packageModal').addEventListener('click', (e) => {
             if (e.target.id === 'packageModal') {
                 closeModal();
+            }
+        });
+
+        // Event listeners for buttons
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+        document.getElementById('addPackageBtn').addEventListener('click', showAddModal);
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+
+        // Event delegation for dynamically created buttons
+        document.getElementById('packagesBody').addEventListener('click', (e) => {
+            if (e.target.classList.contains('edit-btn')) {
+                const packageId = e.target.getAttribute('data-id');
+                editPackage(packageId);
+            } else if (e.target.classList.contains('delete-btn')) {
+                const packageId = e.target.getAttribute('data-id');
+                deletePackage(packageId);
             }
         });
     </script>
