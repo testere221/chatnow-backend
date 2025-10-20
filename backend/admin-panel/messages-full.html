@@ -600,13 +600,22 @@
             connectWebSocket();
             // 3 saniye sonra WebSocket çalışmadıysa polling başlat
             setTimeout(() => {
-                if (usePolling === false && !socket) {
+                if (usePolling === false && (!socket || socket.readyState !== WebSocket.OPEN)) {
                     console.log('WebSocket başlatılamadı, polling moduna geçiliyor...');
                     usePolling = true;
                     startPolling();
                 }
             }, 3000);
         }, 1000);
+        
+        // Zorla polling başlat (5 saniye sonra)
+        setTimeout(() => {
+            if (!usePolling) {
+                console.log('Zorla polling modu başlatılıyor...');
+                usePolling = true;
+                startPolling();
+            }
+        }, 5000);
     </script>
 </body>
 </html>
