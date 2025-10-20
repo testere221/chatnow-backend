@@ -198,6 +198,24 @@ class ImageCacheService {
 
     return imageUri;
   }
+
+  /**
+   * Belirli bir kullanıcının profil resmi cache'ini temizle
+   */
+  static clearProfileImageCache(userId: string): void {
+    const key = `profile_${userId}`;
+    this.cache.delete(key);
+    console.log(`✅ ImageCache: Profil resmi cache temizlendi - ${userId}`);
+  }
+
+  /**
+   * Tüm profil resmi cache'lerini temizle
+   */
+  static clearAllProfileImageCache(): void {
+    const keysToDelete = Array.from(this.cache.keys()).filter(key => key.startsWith('profile_'));
+    keysToDelete.forEach(key => this.cache.delete(key));
+    console.log(`✅ ImageCache: ${keysToDelete.length} profil resmi cache temizlendi`);
+  }
 }
 
 export default ImageCacheService;

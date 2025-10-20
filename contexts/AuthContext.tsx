@@ -4,6 +4,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import { API_CONFIG, ApiService } from '../config/api';
 import { NotificationService } from '../services/NotificationService';
 import { webSocketService } from '../services/websocket';
+import ImageCacheService from '../services/ImageCacheService';
 
 export interface User {
   id: string;
@@ -359,6 +360,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // AsyncStorage'ı güncelle
       await AsyncStorage.setItem('user_data', JSON.stringify(updatedUser));
+
+      // Profil resmi değiştiyse cache'i temizle
+      if (updatedProfile.avatar_image || updatedProfile.avatar) {
+        ImageCacheService.clearProfileImageCache(currentUser.id.toString());
+      }
       
     } catch (error) {
       console.error('Update profile error:', error);

@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import { API_CONFIG } from '../config/api';
 import { useAuth } from './AuthContext';
 import { useChat } from './ChatContext';
+import ImageCacheService from '../services/ImageCacheService';
 
 export interface UserProfile {
   id: string;
@@ -166,6 +167,11 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
           isOnline: true,
           lastSeen: new Date()
         });
+
+        // Profil resmi değiştiyse cache'i temizle
+        if (updatedProfile.avatar_image || updatedProfile.avatar) {
+          ImageCacheService.clearProfileImageCache(authUser.id.toString());
+        }
       }
       
     } catch (error) {

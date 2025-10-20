@@ -4,6 +4,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import { ApiService } from '../config/api';
 import { webSocketService } from '../services/websocket';
 import { useAuth } from './AuthContext';
+import ImageCacheService from '../services/ImageCacheService';
 
 export interface Message {
   id: string;
@@ -203,6 +204,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ...prev,
         [userId]: state.isOnline!
       }));
+    }
+
+    // Profil resmi değiştiyse cache'i temizle
+    if (state.avatar || state.avatarImage) {
+      ImageCacheService.clearProfileImageCache(userId);
     }
   };
 
@@ -418,9 +424,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         // Create new chat
         try {
-          console.log('🔍 sendMessage: getUserInfo çağrılıyor:', receiverId);
           const userInfo = await getUserInfo(receiverId, true);
-          console.log('✅ sendMessage: Kullanıcı bilgileri alındı:', userInfo);
           const newChat: Chat = {
             id: chatId,
             user1Id: currentUser.id,
