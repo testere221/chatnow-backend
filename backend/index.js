@@ -16,6 +16,8 @@ const User = require('./models/User');
 const Message = require('./models/Message');
 const Chat = require('./models/Chat');
 const Block = require('./models/Block');
+const Admin = require('./models/Admin');
+const TokenPackage = require('./models/TokenPackage');
 
 // Services
 const { sendEmail } = require('./services/emailService');
@@ -139,6 +141,11 @@ app.use('/uploads', express.static('uploads')); // URL encoded limit
 
 // Static files serving for HTML pages
 app.use(express.static('.'));
+
+// Admin Panel route
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin-panel', 'index.html'));
+});
 
 // Handle preflight requests
 app.options('*', cors());
@@ -2350,6 +2357,164 @@ app.delete('/api/auth/delete-account', authenticateToken, async (req, res) => {
   }
 });
 
+// ==========================================
+// ADMIN API ENDPOINTS
+// ==========================================
+
+// Admin authentication middleware
+const authenticateAdmin = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Admin token gerekli' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const admin = await Admin.findById(decoded.adminId);
+    
+    if (!admin || !admin.is_active) {
+      return res.status(401).json({ error: 'Yetkisiz erişim' });
+    }
+
+    req.admin = admin;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Geçersiz admin token' });
+  }
+};
+
+// Admin login
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const admin = await Admin.findOne({ username });
+    if (!admin) {
+      return res.status(401).json({ error: 'Kullanıcı adı veya şifre hatalı' });
+    }
+
+    const isPasswordValid = await admin.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Kullanıcı adı veya şifre hatalı' });
+    }
+
+    if (!admin.is_active) {
+      return res.status(401).json({ error: 'Hesap pasif durumda' });
+    }
+
+    // Update last login
+    admin.last_login = new Date();
+    await admin.save();
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { adminId: admin._id, role: admin.role },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      token,
+      admin: {
+        id: admin._id,
+        username: admin.username,
+        email: admin.email,
+        role: admin.role
+      }
+    });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({ error: 'Giriş yapılırken hata oluştu' });
+  }
+});
+
+// Get all token packages
+app.get('/api/admin/token-packages', authenticateAdmin, async (req, res) => {
+  try {
+    const packages = await TokenPackage.find().sort({ display_order: 1 });
+    res.json(packages);
+  } catch (error) {
+    console.error('Get packages error:', error);
+    res.status(500).json({ error: 'Paketler yüklenirken hata oluştu' });
+  }
+});
+
+// Create token package
+app.post('/api/admin/token-packages', authenticateAdmin, async (req, res) => {
+  try {
+    const { product_id, token_amount, price_try, price_usd, display_order } = req.body;
+
+    const package = new TokenPackage({
+      product_id,
+      token_amount,
+      price_try,
+      price_usd,
+      display_order: display_order || 0
+    });
+
+    await package.save();
+    res.status(201).json(package);
+  } catch (error) {
+    console.error('Create package error:', error);
+    if (error.code === 11000) {
+      res.status(400).json({ error: 'Bu product_id zaten kullanılıyor' });
+    } else {
+      res.status(500).json({ error: 'Paket oluşturulurken hata oluştu' });
+    }
+  }
+});
+
+// Update token package
+app.put('/api/admin/token-packages/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { product_id, token_amount, price_try, price_usd, display_order, is_active } = req.body;
+
+    const package = await TokenPackage.findByIdAndUpdate(
+      id,
+      { product_id, token_amount, price_try, price_usd, display_order, is_active },
+      { new: true, runValidators: true }
+    );
+
+    if (!package) {
+      return res.status(404).json({ error: 'Paket bulunamadı' });
+    }
+
+    res.json(package);
+  } catch (error) {
+    console.error('Update package error:', error);
+    res.status(500).json({ error: 'Paket güncellenirken hata oluştu' });
+  }
+});
+
+// Delete token package
+app.delete('/api/admin/token-packages/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const package = await TokenPackage.findByIdAndDelete(id);
+
+    if (!package) {
+      return res.status(404).json({ error: 'Paket bulunamadı' });
+    }
+
+    res.json({ message: 'Paket silindi', package });
+  } catch (error) {
+    console.error('Delete package error:', error);
+    res.status(500).json({ error: 'Paket silinirken hata oluştu' });
+  }
+});
+
+// Public endpoint to get active packages (for mobile app)
+app.get('/api/token-packages', async (req, res) => {
+  try {
+    const packages = await TokenPackage.find({ is_active: true }).sort({ display_order: 1 });
+    res.json(packages);
+  } catch (error) {
+    console.error('Get public packages error:', error);
+    res.status(500).json({ error: 'Paketler yüklenirken hata oluştu' });
+  }
+});
+
 // Server başlat
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server çalışıyor: http://localhost:${PORT}`);
@@ -2359,4 +2524,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`📱 API Test: http://localhost:${PORT}/api/test`);
   console.log(`🧪 Test Users: POST http://localhost:${PORT}/api/test/create-users`);
   console.log(`🗑️ Delete Test: DELETE http://localhost:${PORT}/api/test/delete-users`);
+  console.log(`🔐 Admin Panel: http://localhost:${PORT}/admin`);
 });

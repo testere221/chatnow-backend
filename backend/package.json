@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "create-admin": "node create-admin.js"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.0",
