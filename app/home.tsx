@@ -13,6 +13,7 @@ import { User as AppUser } from '../contexts/AuthContext';
 import { useChat } from '../contexts/ChatContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { NavigationHelper } from '../utils/NavigationHelper';
+import webSocketService from '../services/websocket';
 
 /** Types coming from API */
 type PaginatedUsers = {
@@ -222,6 +223,36 @@ export default function Home() {
       setLoading(false);
     }
   }, [USERS_PER_PAGE, currentUser?.id, hydrateGlobal]);
+
+  // WebSocket profil güncellemesi dinleyicisi
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const handleProfileUpdate = (data: { userId: string; updatedFields: any }) => {
+      console.log('🔄 Profil güncellendi (Home):', data);
+      
+      // Kullanıcı listesindeki ilgili kullanıcıyı güncelle
+      setUsers(prevUsers => 
+        prevUsers.map(user => {
+          if (user.id === data.userId) {
+            return {
+              ...user,
+              ...data.updatedFields
+            };
+          }
+          return user;
+        })
+      );
+    };
+
+    // WebSocket listener'ı ekle
+    webSocketService.on('profileUpdated', handleProfileUpdate);
+
+    // Cleanup
+    return () => {
+      webSocketService.off('profileUpdated', handleProfileUpdate);
+    };
+  }, [currentUser?.id]);
 
   const loadMoreUsers = useCallback(async () => {
     if (loadingMore || (!hasMoreOnlineUsers && !hasMoreOfflineUsers)) return;
