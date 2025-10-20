@@ -27,6 +27,11 @@
                 <input type="text" id="searchInput" placeholder="Kullanıcı ara (isim veya email)...">
                 <button class="btn btn-success" id="addBotBtn">+ Destek Botu Ekle</button>
             </div>
+            
+            <div class="bot-section">
+                <h3>Destek Botları</h3>
+                <div id="botList" class="bot-list"></div>
+            </div>
 
             <table>
                 <thead>
@@ -165,6 +170,103 @@
                 document.getElementById('usersBody').innerHTML = `
                     <tr><td colspan="7" class="empty-state">Hata: ${error.message}</td></tr>
                 `;
+            }
+        }
+
+        // Load bots
+        async function loadBots() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/support-bots`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const bots = await response.json();
+                    displayBots(bots);
+                }
+            } catch (error) {
+                console.error('Bot yükleme hatası:', error);
+            }
+        }
+
+        // Display bots
+        function displayBots(bots) {
+            const botList = document.getElementById('botList');
+            
+            if (bots.length === 0) {
+                botList.innerHTML = '<div class="empty-state">Henüz bot oluşturulmamış</div>';
+                return;
+            }
+
+            botList.innerHTML = bots.map(bot => `
+                <div class="bot-card">
+                    <div class="bot-avatar">
+                        <img src="${bot.avatar_image || '/uploads/default-avatar.png'}" alt="${bot.name}" onerror="this.src='/uploads/default-avatar.png'">
+                        <input type="file" id="botAvatar_${bot._id}" accept="image/*" style="display: none;">
+                        <button class="btn btn-sm btn-primary" onclick="document.getElementById('botAvatar_${bot._id}').click()">Resim Değiştir</button>
+                    </div>
+                    <div class="bot-info">
+                        <h4>${bot.name}</h4>
+                        <p>${bot.email}</p>
+                        <p>${bot.about || 'Bot açıklaması yok'}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            // Bot resmi değiştirme event listener'ları
+            bots.forEach(bot => {
+                const fileInput = document.getElementById(`botAvatar_${bot._id}`);
+                fileInput.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        await updateBotAvatar(bot._id, file);
+                    }
+                });
+            });
+        }
+
+        // Update bot avatar
+        async function updateBotAvatar(botId, file) {
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${API_URL}/api/admin/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Bot'un avatar'ını güncelle
+                    const updateResponse = await fetch(`${API_URL}/api/admin/users/${botId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            avatar: data.imageUrl
+                        })
+                    });
+
+                    if (updateResponse.ok) {
+                        alert('Bot resmi güncellendi!');
+                        loadBots(); // Bot listesini yenile
+                        loadUsers(); // Kullanıcı listesini de yenile (bot'lar da görünür)
+                    } else {
+                        alert('Bot resmi güncellenemedi');
+                    }
+                } else {
+                    alert('Resim yüklenemedi');
+                }
+            } catch (error) {
+                console.error('Bot resmi güncelleme hatası:', error);
+                alert('Hata oluştu');
             }
         }
 
@@ -374,6 +476,7 @@
 
         // Load on start
         loadUsers();
+        loadBots();
     </script>
 </body>
 </html>

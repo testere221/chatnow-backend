@@ -1104,7 +1104,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               const parts = chat.id.split('_');
               const otherUserId = parts[0] === data.userId ? parts[1] : parts[1] === data.userId ? parts[0] : null;
               
-              if (otherUserId) {
+              if (otherUserId && parts.length >= 2) {
                 return {
                   ...chat,
                   name: data.updatedFields.name,
