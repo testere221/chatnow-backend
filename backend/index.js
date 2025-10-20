@@ -2383,6 +2383,43 @@ const authenticateAdmin = async (req, res, next) => {
   }
 };
 
+// TEMPORARY: Setup admin (only runs once)
+app.get('/api/setup-admin', async (req, res) => {
+  try {
+    const existing = await Admin.findOne({ username: 'admin' });
+    if (existing) {
+      return res.json({ 
+        success: false, 
+        message: 'Admin kullanıcısı zaten mevcut',
+        hint: 'Username: admin, Password: admin123'
+      });
+    }
+    
+    const admin = new Admin({
+      username: 'admin',
+      password: 'admin123',
+      email: 'admin@chatnow.com',
+      role: 'super_admin'
+    });
+    
+    await admin.save();
+    
+    res.json({ 
+      success: true,
+      message: 'Admin başarıyla oluşturuldu!',
+      credentials: {
+        username: 'admin',
+        password: 'admin123',
+        url: '/admin'
+      },
+      warning: 'Güvenlik için ilk girişten sonra şifrenizi değiştirin!'
+    });
+  } catch (error) {
+    console.error('Setup admin error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Admin login
 app.post('/api/admin/login', async (req, res) => {
   try {
