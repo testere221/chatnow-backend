@@ -2,9 +2,9 @@ import { useNavigation } from '@react-navigation/native';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { ApiService } from '../config/api';
+import ImageCacheService from '../services/ImageCacheService';
 import { webSocketService } from '../services/websocket';
 import { useAuth } from './AuthContext';
-import ImageCacheService from '../services/ImageCacheService';
 
 export interface Message {
   id: string;
@@ -1080,11 +1080,80 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           });
         };
 
+        // Profil güncellemesi için listener
+        const handleProfileUpdate = (data: { userId: string; updatedFields: any }) => {
+          console.log('🔄 Profil güncellendi (ChatContext):', data);
+          
+          // Global user state'i güncelle
+          updateUserState(data.userId, {
+            name: data.updatedFields.name,
+            surname: data.updatedFields.surname,
+            avatar: data.updatedFields.avatar,
+            avatarImage: data.updatedFields.avatar_image,
+            bgColor: data.updatedFields.bg_color,
+            age: data.updatedFields.age,
+            location: data.updatedFields.location,
+            about: data.updatedFields.about,
+            hobbies: data.updatedFields.hobbies,
+            diamonds: data.updatedFields.diamonds
+          });
+
+          // Chat listesindeki kullanıcı bilgilerini güncelle
+          setChats(prevChats => 
+            prevChats.map(chat => {
+              const parts = chat.id.split('_');
+              const otherUserId = parts[0] === data.userId ? parts[1] : parts[1] === data.userId ? parts[0] : null;
+              
+              if (otherUserId) {
+                return {
+                  ...chat,
+                  name: data.updatedFields.name,
+                  avatar: data.updatedFields.avatar,
+                  bgColor: data.updatedFields.bg_color,
+                  otherUser: {
+                    ...chat.otherUser,
+                    name: data.updatedFields.name,
+                    surname: data.updatedFields.surname,
+                    avatar: data.updatedFields.avatar,
+                    avatar_image: data.updatedFields.avatar_image,
+                    bg_color: data.updatedFields.bg_color,
+                    age: data.updatedFields.age,
+                    location: data.updatedFields.location,
+                    about: data.updatedFields.about,
+                    hobbies: data.updatedFields.hobbies,
+                    diamonds: data.updatedFields.diamonds
+                  }
+                };
+              }
+              return chat;
+            })
+          );
+
+          // User cache'i güncelle
+          setUserCache(prevCache => ({
+            ...prevCache,
+            [data.userId]: {
+              ...prevCache[data.userId],
+              name: data.updatedFields.name,
+              surname: data.updatedFields.surname,
+              avatar: data.updatedFields.avatar,
+              avatarImage: data.updatedFields.avatar_image,
+              bgColor: data.updatedFields.bg_color,
+              age: data.updatedFields.age,
+              location: data.updatedFields.location,
+              about: data.updatedFields.about,
+              hobbies: data.updatedFields.hobbies,
+              diamonds: data.updatedFields.diamonds
+            }
+          }));
+        };
+
         // Önce tüm listener'ları temizle
         webSocketService.off('userOnline', handleUserOnline);
         webSocketService.off('messageForCount', handleNewMessage);
         webSocketService.off('messageSent', handleMessageSent);
         webSocketService.off('chat_deleted', handleChatDeleted);
+        webSocketService.off('profileUpdated', handleProfileUpdate);
         
         // Sonra tekrar ekle (sadece bir kez)
         webSocketService.on('userOnline', handleUserOnline);
@@ -1092,6 +1161,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         webSocketService.on('messageSent', handleMessageSent);
         webSocketService.on('chat_deleted', handleChatDeleted);
         webSocketService.on('newMessage', handleNewMessageForChatList);
+        webSocketService.on('profileUpdated', handleProfileUpdate);
         
         // Chat güncellemesi için listener
         const handleChatUpdated = (data: any) => {

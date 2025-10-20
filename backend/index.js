@@ -2660,6 +2660,23 @@ app.put('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
     }
 
     await user.save();
+
+    // Kullanıcıya profil güncellemesi bildirimi gönder
+    io.emit('profileUpdated', {
+      userId: user._id.toString(),
+      updatedFields: {
+        name: user.name,
+        surname: user.surname,
+        age: user.age,
+        location: user.location,
+        about: user.about,
+        hobbies: user.hobbies,
+        diamonds: user.diamonds,
+        avatar: user.avatar,
+        avatar_image: user.avatar_image
+      }
+    });
+
     res.json({ success: true, user });
   } catch (error) {
     console.error('Update user error:', error);

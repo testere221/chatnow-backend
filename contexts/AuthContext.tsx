@@ -2,9 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { API_CONFIG, ApiService } from '../config/api';
+import ImageCacheService from '../services/ImageCacheService';
 import { NotificationService } from '../services/NotificationService';
 import { webSocketService } from '../services/websocket';
-import ImageCacheService from '../services/ImageCacheService';
 
 export interface User {
   id: string;
@@ -141,6 +141,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     checkStoredUser();
   }, []);
+
+  // WebSocket profil güncellemesi dinleyicisi
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const handleProfileUpdate = (data: { userId: string; updatedFields: any }) => {
+      // Sadece kendi profil güncellemesini dinle
+      if (data.userId === currentUser.id.toString()) {
+        console.log('🔄 Profil güncellendi (WebSocket):', data.updatedFields);
+        
+        // Profil resmi değiştiyse cache'i temizle
+        if (data.updatedFields.avatar || data.updatedFields.avatar_image) {
+          ImageCacheService.clearProfileImageCache(currentUser.id.toString());
+        }
+
+        // State'i güncelle
+        setCurrentUser(prevUser => ({
+          ...prevUser!,
+          ...data.updatedFields
+        }));
+
+        // AsyncStorage'ı da güncelle
+        AsyncStorage.setItem('user_data', JSON.stringify({
+          ...currentUser,
+          ...data.updatedFields
+        })).catch(error => {
+          console.error('AsyncStorage update error:', error);
+        });
+      }
+    };
+
+    // WebSocket listener'ı ekle
+    webSocketService.on('profileUpdated', handleProfileUpdate);
+
+    // Cleanup
+    return () => {
+      webSocketService.off('profileUpdated', handleProfileUpdate);
+    };
+  }, [currentUser?.id]);
 
   // App state listener - uygulama arkaplana geçince offline yap
   useEffect(() => {
