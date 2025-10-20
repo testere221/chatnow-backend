@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanıcı Yönetimi - Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>👥 Kullanıcı Yönetimi</h2>
+            <div class="user-info">
+                <span id="adminUsername"></span>
+                <button class="btn btn-logout" id="logoutBtn">Çıkış</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="nav-tabs">
+                <a href="/admin" class="tab">💎 Paketler</a>
+                <a href="/admin/users.html" class="tab active">👥 Kullanıcılar</a>
+                <a href="/admin/messages.html" class="tab">💬 Mesajlar</a>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Kullanıcı ara (isim veya email)...">
+                <button class="btn btn-success" id="addBotBtn">+ Destek Botu Ekle</button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Avatar</th>
+                        <th>İsim</th>
+                        <th>Email</th>
+                        <th>Jeton</th>
+                        <th>Durum</th>
+                        <th>Kayıt Tarihi</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="usersBody">
+                    <tr><td colspan="7" class="empty-state">Yükleniyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Bot Modal -->
+    <div id="botModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Destek Botu Ekle</h3>
+            </div>
+            <form id="botForm">
+                <div class="input-group">
+                    <label>Bot İsmi</label>
+                    <input type="text" id="botName" required placeholder="Destek">
+                </div>
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="botEmail" required placeholder="destek@chatnow.com">
+                </div>
+                <div class="input-group">
+                    <label>Hakkında</label>
+                    <textarea id="botAbout" rows="3" placeholder="Müşteri destek botu"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="closeBotModalBtn">İptal</button>
+                    <button type="submit" class="btn btn-success">Oluştur</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Kullanıcı Düzenle</h3>
+            </div>
+            <form id="editForm">
+                <div class="input-group">
+                    <label>Jeton Miktarı</label>
+                    <input type="number" id="editDiamonds" required min="0">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="closeEditModalBtn">İptal</button>
+                    <button type="submit" class="btn btn-success">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let authToken = localStorage.getItem('adminToken');
+        let editingUserId = null;
+
+        if (!authToken) {
+            window.location.href = '/admin';
+        }
+
+        document.getElementById('adminUsername').textContent = localStorage.getItem('adminUsername') || 'Admin';
+
+        // Load users
+        async function loadUsers(search = '') {
+            try {
+                let url = `${API_URL}/api/admin/users`;
+                if (search) url += `?search=${encodeURIComponent(search)}`;
+
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        logout();
+                        return;
+                    }
+                    throw new Error('Kullanıcılar yüklenemedi');
+                }
+
+                const data = await response.json();
+                renderUsers(data.users);
+            } catch (error) {
+                console.error(error);
+                document.getElementById('usersBody').innerHTML = `
+                    <tr><td colspan="7" class="empty-state">Hata: ${error.message}</td></tr>
+                `;
+            }
+        }
+
+        function renderUsers(users) {
+            const tbody = document.getElementById('usersBody');
+
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Kullanıcı bulunamadı</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td>
+                        <img src="${user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name)}" 
+                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                    </td>
+                    <td><strong>${user.name} ${user.surname || ''}</strong></td>
+                    <td>${user.email}</td>
+                    <td><strong>${user.diamonds || 0}</strong> 💎</td>
+                    <td>
+                        <span class="status-badge ${user.is_online ? 'status-active' : 'status-inactive'}">
+                            ${user.is_online ? 'Online' : 'Offline'}
+                        </span>
+                    </td>
+                    <td>${new Date(user.created_at).toLocaleDateString('tr-TR')}</td>
+                    <td>
+                        <button class="btn btn-primary btn-small edit-user-btn" data-id="${user._id}" data-diamonds="${user.diamonds}">
+                            Düzenle
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Search
+        let searchTimeout;
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                loadUsers(e.target.value);
+            }, 300);
+        });
+
+        // Bot Modal
+        document.getElementById('addBotBtn').addEventListener('click', () => {
+            document.getElementById('botModal').style.display = 'flex';
+        });
+
+        document.getElementById('closeBotModalBtn').addEventListener('click', () => {
+            document.getElementById('botModal').style.display = 'none';
+        });
+
+        document.getElementById('botForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const botData = {
+                name: document.getElementById('botName').value,
+                email: document.getElementById('botEmail').value,
+                about: document.getElementById('botAbout').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/support-bots`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(botData)
+                });
+
+                if (response.ok) {
+                    document.getElementById('botModal').style.display = 'none';
+                    document.getElementById('botForm').reset();
+                    loadUsers();
+                    alert('Bot oluşturuldu!');
+                } else {
+                    const data = await response.json();
+                    alert(data.error || 'Bot oluşturulamadı');
+                }
+            } catch (error) {
+                alert('Hata oluştu');
+            }
+        });
+
+        // Edit User
+        document.getElementById('usersBody').addEventListener('click', (e) => {
+            if (e.target.classList.contains('edit-user-btn')) {
+                editingUserId = e.target.getAttribute('data-id');
+                const diamonds = e.target.getAttribute('data-diamonds');
+                document.getElementById('editDiamonds').value = diamonds;
+                document.getElementById('editModal').style.display = 'flex';
+            }
+        });
+
+        document.getElementById('closeEditModalBtn').addEventListener('click', () => {
+            document.getElementById('editModal').style.display = 'none';
+        });
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const diamonds = parseInt(document.getElementById('editDiamonds').value);
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/users/${editingUserId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ diamonds })
+                });
+
+                if (response.ok) {
+                    document.getElementById('editModal').style.display = 'none';
+                    loadUsers();
+                    alert('Kullanıcı güncellendi!');
+                } else {
+                    alert('Güncelleme başarısız');
+                }
+            } catch (error) {
+                alert('Hata oluştu');
+            }
+        });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUsername');
+            window.location.href = '/admin';
+        }
+
+        // Load on start
+        loadUsers();
+    </script>
+</body>
+</html>
+

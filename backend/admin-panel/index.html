@@ -306,6 +306,31 @@
             margin-bottom: 20px;
             opacity: 0.3;
         }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            text-decoration: none;
+            color: #6b7280;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -343,6 +368,12 @@
         </div>
 
         <div class="content">
+            <div class="nav-tabs">
+                <a href="/admin" class="tab active">💎 Paketler</a>
+                <a href="/admin/users.html" class="tab">👥 Kullanıcılar</a>
+                <a href="/admin/messages.html" class="tab">💬 Mesajlar</a>
+            </div>
+
             <div class="stats">
                 <div class="stat-card">
                     <h3 id="totalPackages">0</h3>

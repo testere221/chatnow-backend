@@ -2552,6 +2552,294 @@ app.get('/api/token-packages', async (req, res) => {
   }
 });
 
+// ==========================================
+// ADMIN USER MANAGEMENT
+// ==========================================
+
+// Get all users
+app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
+  try {
+    const { search, page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    let query = {};
+    if (search) {
+      query = {
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ]
+      };
+    }
+
+    const users = await User.find(query)
+      .select('-password')
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await User.countDocuments(query);
+
+    res.json({
+      users,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({ error: 'Kullanıcılar yüklenirken hata oluştu' });
+  }
+});
+
+// Get user details
+app.get('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ error: 'Kullanıcı yüklenirken hata oluştu' });
+  }
+});
+
+// Update user (add/remove diamonds, ban, etc.)
+app.put('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { diamonds } = req.body;
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+
+    if (diamonds !== undefined) {
+      user.diamonds = diamonds;
+    }
+
+    await user.save();
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Kullanıcı güncellenirken hata oluştu' });
+  }
+});
+
+// Create support bot user
+app.post('/api/admin/support-bots', authenticateAdmin, async (req, res) => {
+  try {
+    const { name, email, about } = req.body;
+
+    // Check if email exists
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ error: 'Bu email zaten kullanılıyor' });
+    }
+
+    // Create bot user
+    const bot = new User({
+      email,
+      name,
+      surname: 'Bot',
+      age: 25,
+      location: 'Sistem',
+      gender: 'male',
+      about: about || 'Müşteri destek botu',
+      diamonds: 999999,
+      avatar: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name),
+      is_online: true
+    });
+
+    await bot.save();
+    res.status(201).json({ success: true, bot });
+  } catch (error) {
+    console.error('Create bot error:', error);
+    res.status(500).json({ error: 'Bot oluşturulurken hata oluştu' });
+  }
+});
+
+// Get all support bots
+app.get('/api/admin/support-bots', authenticateAdmin, async (req, res) => {
+  try {
+    const bots = await User.find({
+      surname: 'Bot',
+      diamonds: 999999
+    }).select('-password');
+
+    res.json(bots);
+  } catch (error) {
+    console.error('Get bots error:', error);
+    res.status(500).json({ error: 'Botlar yüklenirken hata oluştu' });
+  }
+});
+
+// ==========================================
+// ADMIN MESSAGES MANAGEMENT
+// ==========================================
+
+// Get messages for a support bot
+app.get('/api/admin/messages/:botId', authenticateAdmin, async (req, res) => {
+  try {
+    const { botId } = req.params;
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Get all chats involving this bot
+    const chats = await Chat.find({
+      participants: botId
+    }).sort({ last_message_time: -1 });
+
+    const chatIds = chats.map(c => c._id);
+
+    // Get messages from these chats
+    const messages = await Message.find({
+      chat_id: { $in: chatIds }
+    })
+    .sort({ timestamp: -1 })
+    .skip(skip)
+    .limit(parseInt(limit))
+    .populate('sender_id', 'name email avatar')
+    .populate('receiver_id', 'name email avatar');
+
+    const total = await Message.countDocuments({
+      chat_id: { $in: chatIds }
+    });
+
+    res.json({
+      messages,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ error: 'Mesajlar yüklenirken hata oluştu' });
+  }
+});
+
+// Get chat conversations (grouped by user)
+app.get('/api/admin/conversations/:botId', authenticateAdmin, async (req, res) => {
+  try {
+    const { botId } = req.params;
+
+    const chats = await Chat.find({
+      participants: botId
+    })
+    .sort({ last_message_time: -1 })
+    .populate('participants', 'name email avatar is_online');
+
+    const conversations = await Promise.all(chats.map(async (chat) => {
+      const otherUser = chat.participants.find(p => p._id.toString() !== botId);
+      const lastMessage = await Message.findOne({ chat_id: chat._id })
+        .sort({ timestamp: -1 });
+
+      const unreadCount = await Message.countDocuments({
+        chat_id: chat._id,
+        receiver_id: botId,
+        read: false
+      });
+
+      return {
+        chatId: chat._id,
+        user: otherUser,
+        lastMessage,
+        unreadCount,
+        lastMessageTime: chat.last_message_time
+      };
+    }));
+
+    res.json(conversations);
+  } catch (error) {
+    console.error('Get conversations error:', error);
+    res.status(500).json({ error: 'Konuşmalar yüklenirken hata oluştu' });
+  }
+});
+
+// Send message as bot
+app.post('/api/admin/send-message', authenticateAdmin, async (req, res) => {
+  try {
+    const { botId, receiverId, text } = req.body;
+
+    // Find or create chat
+    let chat = await Chat.findOne({
+      participants: { $all: [botId, receiverId] }
+    });
+
+    if (!chat) {
+      chat = new Chat({
+        participants: [botId, receiverId],
+        last_message: text,
+        last_message_time: new Date()
+      });
+      await chat.save();
+    }
+
+    // Create message
+    const message = new Message({
+      chat_id: chat._id,
+      sender_id: botId,
+      receiver_id: receiverId,
+      text,
+      timestamp: new Date(),
+      read: false
+    });
+
+    await message.save();
+
+    // Update chat
+    chat.last_message = text;
+    chat.last_message_time = new Date();
+    await chat.save();
+
+    // Emit socket event if user is online
+    const receiverSocketId = onlineUsers.get(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('receiveMessage', {
+        ...message.toObject(),
+        sender_id: await User.findById(botId).select('name avatar')
+      });
+    }
+
+    res.json({ success: true, message });
+  } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({ error: 'Mesaj gönderilirken hata oluştu' });
+  }
+});
+
+// Get dashboard stats
+app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const onlineUsers = await User.countDocuments({ is_online: true });
+    const totalMessages = await Message.countDocuments();
+    const totalChats = await Chat.countDocuments();
+    const totalPackages = await TokenPackage.countDocuments();
+
+    res.json({
+      users: {
+        total: totalUsers,
+        online: onlineUsers
+      },
+      messages: totalMessages,
+      chats: totalChats,
+      packages: totalPackages
+    });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({ error: 'İstatistikler yüklenirken hata oluştu' });
+  }
+});
+
 // Server başlat
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server çalışıyor: http://localhost:${PORT}`);
