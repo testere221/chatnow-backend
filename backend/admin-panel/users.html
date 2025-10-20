@@ -103,8 +103,13 @@
                         <input type="number" id="editDiamonds" required min="0">
                     </div>
                     <div class="input-group">
-                        <label>Profil Resmi URL</label>
-                        <input type="url" id="editAvatar" placeholder="https://...">
+                        <label>Profil Resmi</label>
+                        <input type="url" id="editAvatar" placeholder="https://..." style="margin-bottom:8px;">
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="file" id="avatarFile" accept="image/*">
+                            <button type="button" class="btn btn-primary" id="uploadAvatarBtn">Yükle</button>
+                            <span id="uploadStatus" style="font-size:12px; color:#666;"></span>
+                        </div>
                     </div>
                 </div>
                 <div class="input-group">
@@ -332,6 +337,40 @@
             localStorage.removeItem('adminUsername');
             window.location.href = '/admin';
         }
+
+        // Upload avatar
+        document.getElementById('uploadAvatarBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('avatarFile');
+            const statusEl = document.getElementById('uploadStatus');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Lütfen bir resim seçin');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            statusEl.textContent = 'Yükleniyor...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/upload`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('editAvatar').value = data.url;
+                    statusEl.textContent = 'Yüklendi!';
+                } else {
+                    statusEl.textContent = 'Hata: ' + (data.error || 'Yüklenemedi');
+                }
+            } catch (error) {
+                statusEl.textContent = 'Hata: ' + error.message;
+            }
+        });
 
         // Load on start
         loadUsers();
