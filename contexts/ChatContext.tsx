@@ -1147,6 +1147,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               diamonds: data.updatedFields.diamonds
             }
           }));
+
+          // Profil resmi değiştiyse cache'i temizle
+          if (data.updatedFields.avatar || data.updatedFields.avatar_image) {
+            ImageCacheService.clearProfileImageCache(data.userId);
+          }
         };
 
         // Önce tüm listener'ları temizle

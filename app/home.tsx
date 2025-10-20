@@ -14,6 +14,7 @@ import { useChat } from '../contexts/ChatContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { NavigationHelper } from '../utils/NavigationHelper';
 import { webSocketService } from '../services/websocket';
+import { ImageCacheService } from '../services/ImageCacheService';
 
 /** Types coming from API */
 type PaginatedUsers = {
@@ -230,6 +231,11 @@ export default function Home() {
 
     const handleProfileUpdate = (data: { userId: string; updatedFields: any }) => {
       console.log('🔄 Profil güncellendi (Home):', data);
+      
+      // Profil resmi değiştiyse cache'i temizle
+      if (data.updatedFields.avatar || data.updatedFields.avatar_image) {
+        ImageCacheService.clearProfileImageCache(data.userId);
+      }
       
       // Kullanıcı listesindeki ilgili kullanıcıyı güncelle
       setUsers(prevUsers => 
