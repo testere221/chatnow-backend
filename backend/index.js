@@ -103,7 +103,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 2 * 1024 * 1024 // 2MB limit
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
@@ -133,8 +133,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
-app.use(express.json({ limit: '10mb' })); // JSON limit
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '2mb' })); // JSON limit
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Static files serving for uploaded images
 app.use('/uploads', express.static('uploads')); // URL encoded limit

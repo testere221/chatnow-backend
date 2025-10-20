@@ -283,9 +283,12 @@
                 <tr>
                     <td>
                         ${user.avatar_image ? 
-                            `<img src="${user.avatar_image}" 
+                            `<img src="${user.avatar_image.startsWith('data:') ? user.avatar_image : user.avatar_image}" 
                                   style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;"
-                                  class="user-avatar-img">` :
+                                  class="user-avatar-img"
+                                  loading="lazy"
+                                  onload="this.style.opacity='1'"
+                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` :
                             `<div style="width: 40px; height: 40px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 18px;">
                                 ${user.gender === 'male' ? '👨' : '👩'}
                              </div>`
