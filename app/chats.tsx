@@ -549,8 +549,20 @@ export default function Chats() {
                               } else if (chat.avatarImage) {
                                 return (
                                   <Image 
-                                    source={{ uri: chat.avatarImage.startsWith('data:') ? chat.avatarImage : `data:image/jpeg;base64,${chat.avatarImage}` }} 
+                                    source={{ 
+                                      uri: chat.avatarImage.startsWith('data:') 
+                                        ? chat.avatarImage 
+                                        : chat.avatarImage.startsWith('http')
+                                        ? chat.avatarImage
+                                        : `data:image/jpeg;base64,${chat.avatarImage}` 
+                                    }} 
                                     style={styles.avatarImage}
+                                    onError={(error) => {
+                                      console.log('❌ Chats: Resim yüklenemedi:', chat.avatarImage, error);
+                                    }}
+                                    onLoad={() => {
+                                      console.log('✅ Chats: Resim yüklendi:', chat.avatarImage);
+                                    }}
                                   />
                                 );
                               } else if (chat.avatar) {

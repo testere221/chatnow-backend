@@ -605,10 +605,18 @@ export default function ChatDetail() {
                   source={{ 
                     uri: chatUser.avatar_image.startsWith('data:') 
                       ? chatUser.avatar_image 
+                      : chatUser.avatar_image.startsWith('http')
+                      ? chatUser.avatar_image
                       : `data:image/jpeg;base64,${chatUser.avatar_image}`
                   }} 
                   style={styles.avatarImage}
                   resizeMode="cover"
+                  onError={(error) => {
+                    console.log('❌ Chat: Resim yüklenemedi:', chatUser.avatar_image, error);
+                  }}
+                  onLoad={() => {
+                    console.log('✅ Chat: Resim yüklendi:', chatUser.avatar_image);
+                  }}
                 />
               ) : (
                 <Text style={[styles.avatarText, { color: chatUser?.gender === 'male' ? '#3B82F6' : '#FF6B95' }]}>

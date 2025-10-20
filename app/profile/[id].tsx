@@ -210,6 +210,8 @@ export default function UserProfile() {
                   source={{ 
                     uri: user.avatar_image.startsWith('data:') 
                       ? user.avatar_image 
+                      : user.avatar_image.startsWith('http')
+                      ? user.avatar_image
                       : `data:image/jpeg;base64,${user.avatar_image}`
                   }} 
                   style={styles.profileImage}
@@ -218,8 +220,10 @@ export default function UserProfile() {
                   loadingIndicatorSource={require('../../assets/images/icon.png')}
                   progressiveRenderingEnabled={true}
                   onError={(error) => {
+                    console.log('❌ Profile: Resim yüklenemedi:', user.avatar_image, error);
                   }}
                   onLoad={() => {
+                    console.log('✅ Profile: Resim yüklendi:', user.avatar_image);
                   }}
                 />
               ) : user.avatar ? (

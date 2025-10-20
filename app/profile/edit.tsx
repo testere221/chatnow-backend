@@ -273,6 +273,8 @@ export default function EditProfile() {
                   source={{ 
                     uri: currentUser.avatarImage.startsWith('data:') 
                       ? currentUser.avatarImage 
+                      : currentUser.avatarImage.startsWith('http')
+                      ? currentUser.avatarImage
                       : `data:image/jpeg;base64,${currentUser.avatarImage}`
                   }} 
                   style={styles.profileImage}
@@ -280,6 +282,7 @@ export default function EditProfile() {
                     console.log('❌ Edit: Mevcut profil resmi yüklenemedi:', currentUser.avatarImage, error);
                   }}
                   onLoad={() => {
+                    console.log('✅ Edit: Mevcut profil resmi yüklendi:', currentUser.avatarImage);
                   }}
                 />
               ) : (
