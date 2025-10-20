@@ -763,18 +763,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
     // Her iki kullanıcıya da chat güncellemesi gönder
     io.to(receiverId).emit('chatUpdated', chatUpdateData);
     io.to(senderId).emit('chatUpdated', chatUpdateData);
-    // Yeni mesaj yayınlandı
-
-    // Hızlı response gönder
-    res.json({
-      success: true,
-      message: 'Mesaj gönderildi!',
-      messageId: newMessage._id,
-      chatId: chat_id,
-      user: {
-        diamonds: sender.diamonds - requiredTokens
-      }
-    });
+    // Yeni mesaj yayınlandı (response aşağıda 958. satırda gönderilecek)
 
     // Push notification kontrolü - HER ZAMAN GÖNDER
     const receiverSocketId = onlineUsers.get(receiverId);
