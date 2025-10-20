@@ -962,7 +962,9 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
         diamonds: updatedSender.diamonds
       }
     });
+    return; // Yanıt gönderildikten sonra fonksiyondan çık
   } catch (error) {
+    console.error('❌ Mesaj gönderme hatası:', error);
     res.status(500).json({ message: 'Mesaj gönderilirken hata oluştu.', error: error.message });
   }
 });
