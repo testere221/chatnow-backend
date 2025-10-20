@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CountBadge from '../components/CountBadge';
 import OptimizedImage from '../components/OptimizedImage';
@@ -48,6 +48,8 @@ const ProfileCard = memo(
       user.avatar_image && user.avatar_image.trim() !== ''
         ? user.avatar_image.startsWith('data:')
           ? user.avatar_image
+          : user.avatar_image.startsWith('http')
+          ? user.avatar_image
           : `data:image/jpeg;base64,${user.avatar_image}`
         : null;
 
@@ -61,13 +63,27 @@ const ProfileCard = memo(
         <View style={[styles.profileImageContainer, { height: imageHeight }]}>
           {avatarUri ? (
             <View style={[styles.profileImage, { backgroundColor: user.bg_color || '#FFB6C1', height: imageHeight }]}>
-              <OptimizedImage
-                uri={avatarUri}
-                style={[styles.profileImageSource, { height: imageHeight }]}
-                resizeMode="cover"
-                cacheKey={avatarUri.startsWith('http') ? `http_${user.id}` : `profile_${user.id}`}
-                preload={true}
-              />
+              {avatarUri.startsWith('http') ? (
+                <Image
+                  source={{ uri: avatarUri }}
+                  style={[styles.profileImageSource, { height: imageHeight }]}
+                  resizeMode="cover"
+                  onError={(error) => {
+                    console.log('❌ Home: HTTP resim yüklenemedi:', avatarUri, error);
+                  }}
+                  onLoad={() => {
+                    console.log('✅ Home: HTTP resim yüklendi:', avatarUri);
+                  }}
+                />
+              ) : (
+                <OptimizedImage
+                  uri={avatarUri}
+                  style={[styles.profileImageSource, { height: imageHeight }]}
+                  resizeMode="cover"
+                  cacheKey={`profile_${user.id}`}
+                  preload={true}
+                />
+              )}
             </View>
           ) : (
             <LinearGradient

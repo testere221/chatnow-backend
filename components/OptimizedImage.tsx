@@ -46,6 +46,30 @@ const OptimizedImage = memo<OptimizedImageProps>(({
     return uri;
   }, [uri, cacheKey]);
 
+  // HTTP URL'leri için güvenlik kontrolü
+  const isValidHttpUrl = useMemo(() => {
+    if (!uri.startsWith('http')) return true;
+    
+    try {
+      const url = new URL(uri);
+      const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      const hasValidExtension = validExtensions.some(ext => 
+        url.pathname.toLowerCase().includes(ext)
+      );
+      
+      console.log('🔄 HTTP URL kontrolü:', {
+        url: uri,
+        hasValidExtension,
+        pathname: url.pathname
+      });
+      
+      return hasValidExtension;
+    } catch (error) {
+      console.error('❌ HTTP URL geçersiz:', uri, error);
+      return false;
+    }
+  }, [uri]);
+
   // Resim yüklendiğinde
   const handleLoad = useCallback(() => {
     setLoading(false);
@@ -100,7 +124,12 @@ const OptimizedImage = memo<OptimizedImageProps>(({
     </View>
   ));
 
-  if (error) {
+  if (error || !isValidHttpUrl) {
+    console.log('❌ OptimizedImage: Resim gösterilemiyor', {
+      error,
+      isValidHttpUrl,
+      uri: uri.substring(0, 100) + '...'
+    });
     return <ErrorPlaceholder />;
   }
 
