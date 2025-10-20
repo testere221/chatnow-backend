@@ -202,7 +202,7 @@
             botList.innerHTML = bots.map(bot => `
                 <div class="bot-card">
                     <div class="bot-avatar">
-                        <img src="${bot.avatar_image || '/uploads/default-avatar.png'}" alt="${bot.name}" class="bot-avatar-img">
+                        <img src="${bot.avatar_image || 'data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text y=\".9em\" font-size=\"90\">🤖</text></svg>'}" alt="${bot.name}" class="bot-avatar-img">
                         <input type="file" id="botAvatar_${bot._id}" accept="image/*" style="display: none;">
                         <button class="btn btn-sm btn-primary" data-bot-id="${bot._id}">Resim Değiştir</button>
                     </div>
@@ -489,13 +489,21 @@
             }
         });
 
-        // Resim hata event listener'ları
+        // Resim hata event listener'ları - sonsuz döngüyü önle
         document.addEventListener('error', (e) => {
             if (e.target.classList.contains('bot-avatar-img')) {
-                e.target.src = '/uploads/default-avatar.png';
+                // Sadece bir kez fallback yap
+                if (!e.target.dataset.fallbackApplied) {
+                    e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🤖</text></svg>';
+                    e.target.dataset.fallbackApplied = 'true';
+                }
             } else if (e.target.classList.contains('user-avatar-img')) {
-                const userName = e.target.closest('tr').querySelector('td:nth-child(2) strong').textContent.split(' ')[0];
-                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}`;
+                // Sadece bir kez fallback yap
+                if (!e.target.dataset.fallbackApplied) {
+                    const userName = e.target.closest('tr').querySelector('td:nth-child(2) strong').textContent.split(' ')[0];
+                    e.target.src = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">👤</text></svg>`;
+                    e.target.dataset.fallbackApplied = 'true';
+                }
             }
         }, true);
 
