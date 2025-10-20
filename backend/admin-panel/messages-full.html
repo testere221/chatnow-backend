@@ -4,7 +4,187 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mesajlar - Admin Panel</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .chat-container {
+            display: flex;
+            height: 600px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .conversations-list {
+            width: 300px;
+            border-right: 1px solid #e5e7eb;
+            background: #f8f9fa;
+            overflow-y: auto;
+        }
+
+        .conversation-item {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background-color 0.2s;
+        }
+
+        .conversation-item:hover {
+            background: #e9ecef;
+        }
+
+        .conversation-item.active {
+            background: #dbeafe;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .conversation-avatar {
+            flex-shrink: 0;
+        }
+
+        .conversation-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .conversation-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .conversation-last-message {
+            color: #666;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .conversation-time {
+            font-size: 12px;
+            color: #999;
+            flex-shrink: 0;
+        }
+
+        .unread-badge {
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .chat-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: white;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message-sent {
+            align-items: flex-end;
+        }
+
+        .message-received {
+            align-items: flex-start;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+
+        .message-sent .message-content {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .message-received .message-content {
+            background: #f1f5f9;
+            color: #333;
+        }
+
+        .message-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .chat-input {
+            padding: 15px;
+            border-top: 1px solid #e5e7eb;
+            background: #f8f9fa;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 24px;
+            outline: none;
+        }
+
+        .chat-input input:focus {
+            border-color: #3b82f6;
+        }
+
+        .chat-input button {
+            padding: 12px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .chat-input button:hover {
+            background: #2563eb;
+        }
+
+        .empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            font-style: italic;
+        }
+
+        .bot-selection {
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -52,7 +232,7 @@
                     </div>
                     <div class="chat-input">
                         <input type="text" id="messageInput" placeholder="Mesajınızı yazın..." disabled>
-                        <button class="btn btn-primary" id="sendBtn" disabled>Gönder</button>
+                        <button id="sendMessageBtn" disabled>Gönder</button>
                     </div>
                 </div>
             </div>
@@ -62,168 +242,158 @@
     <script>
         const API_URL = window.location.origin;
         let authToken = localStorage.getItem('adminToken');
-        let currentBotId = null;
-        let currentChatId = null;
-        let currentReceiverId = null;
+        let selectedBotId = null;
+        let selectedUserId = null;
 
+        // Check authentication
         if (!authToken) {
             window.location.href = '/admin';
         }
 
+        // Load admin username
         document.getElementById('adminUsername').textContent = localStorage.getItem('adminUsername') || 'Admin';
 
-        // Load bots
+        // Logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUsername');
+            window.location.href = '/admin';
+        });
+
+        // Load bots for selection
         async function loadBots() {
             try {
                 const response = await fetch(`${API_URL}/api/admin/support-bots`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
-
-                if (response.ok) {
-                    const bots = await response.json();
-                    const select = document.getElementById('botSelect');
-                    
-                    bots.forEach(bot => {
-                        const option = document.createElement('option');
-                        option.value = bot._id;
-                        option.textContent = bot.name;
-                        select.appendChild(option);
-                    });
-                }
+                const bots = await response.json();
+                
+                const botSelect = document.getElementById('botSelect');
+                botSelect.innerHTML = '<option value="">Seçiniz...</option>';
+                
+                bots.forEach(bot => {
+                    const option = document.createElement('option');
+                    option.value = bot._id;
+                    option.textContent = bot.name;
+                    botSelect.appendChild(option);
+                });
             } catch (error) {
-                console.error('Bot yükleme hatası:', error);
+                console.error('Bots yüklenirken hata:', error);
             }
         }
 
-        // Bot selection changed
+        // Bot selection change
         document.getElementById('botSelect').addEventListener('change', (e) => {
-            currentBotId = e.target.value;
-            if (currentBotId) {
-                document.getElementById('chatContainer').style.display = 'grid';
+            selectedBotId = e.target.value;
+            if (selectedBotId) {
+                document.getElementById('chatContainer').style.display = 'flex';
                 loadConversations();
             } else {
                 document.getElementById('chatContainer').style.display = 'none';
             }
         });
 
-        // Load conversations
+        // Load conversations for selected bot
         async function loadConversations() {
-            if (!currentBotId) return;
-
+            if (!selectedBotId) return;
+            
             try {
-                const response = await fetch(`${API_URL}/api/admin/conversations/${currentBotId}`, {
+                const response = await fetch(`${API_URL}/api/admin/bot-messages/${selectedBotId}`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
-
-                if (response.ok) {
-                    const conversations = await response.json();
-                    renderConversations(conversations);
+                const data = await response.json();
+                
+                const conversationsList = document.getElementById('conversationsList');
+                
+                if (data.conversations.length === 0) {
+                    conversationsList.innerHTML = '<div class="empty-state"><p>Henüz mesaj yok</p></div>';
+                    return;
                 }
-            } catch (error) {
-                console.error('Konuşma yükleme hatası:', error);
-            }
-        }
-
-        function renderConversations(conversations) {
-            const list = document.getElementById('conversationsList');
-
-            if (conversations.length === 0) {
-                list.innerHTML = '<div class="empty-state"><p>Henüz mesaj yok</p></div>';
-                return;
-            }
-
-            list.innerHTML = conversations.map(conv => `
-                <div class="conversation-item" data-chat-id="${conv.chatId}" data-user-id="${conv.user._id}">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <img src="${conv.user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(conv.user.name)}"
-                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
-                        <div style="flex: 1;">
-                            <div style="font-weight: 600; color: #333;">${conv.user.name}</div>
-                            <div style="font-size: 13px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                ${conv.lastMessage ? conv.lastMessage.text : 'Mesaj yok'}
-                            </div>
+                
+                conversationsList.innerHTML = data.conversations.map(conv => `
+                    <div class="conversation-item" data-user-id="${conv.userId}">
+                        <div class="conversation-avatar">
+                            ${conv.userAvatar ? 
+                                `<img src="${conv.userAvatar.startsWith('data:') ? 
+                                    conv.userAvatar : 
+                                    conv.userAvatar.includes('/uploads/') ? 
+                                        conv.userAvatar.replace('/uploads/', '/api/admin/thumbnail/') : 
+                                        conv.userAvatar}" 
+                                  alt="${conv.userName}" 
+                                  style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;"
+                                  class="conversation-avatar-img">` :
+                                `<div style="width: 40px; height: 40px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 18px;">👤</div>`
+                            }
                         </div>
-                        ${conv.unreadCount > 0 ? `
-                            <span style="background: #ef4444; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600;">
-                                ${conv.unreadCount}
-                            </span>
-                        ` : ''}
+                        <div class="conversation-info">
+                            <div class="conversation-name">${conv.userName}</div>
+                            <div class="conversation-last-message">${conv.lastMessage}</div>
+                        </div>
+                        <div class="conversation-time">${new Date(conv.lastMessageTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</div>
+                        ${conv.unreadCount > 0 ? `<div class="unread-badge">${conv.unreadCount}</div>` : ''}
                     </div>
-                </div>
-            `).join('');
-
-            // Add click handlers
-            list.querySelectorAll('.conversation-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    currentChatId = item.getAttribute('data-chat-id');
-                    currentReceiverId = item.getAttribute('data-user-id');
-                    
-                    list.querySelectorAll('.conversation-item').forEach(i => i.classList.remove('active'));
-                    item.classList.add('active');
-                    
-                    loadChatMessages(currentChatId);
-                    
-                    const userName = item.querySelector('div[style*="font-weight: 600"]').textContent;
-                    document.getElementById('chatUserName').textContent = userName;
-                    document.getElementById('messageInput').disabled = false;
-                    document.getElementById('sendBtn').disabled = false;
+                `).join('');
+                
+                // Add click listeners to conversations
+                document.querySelectorAll('.conversation-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        selectedUserId = item.dataset.userId;
+                        loadConversation();
+                        
+                        // Update UI
+                        document.querySelectorAll('.conversation-item').forEach(i => i.classList.remove('active'));
+                        item.classList.add('active');
+                        
+                        // Enable input
+                        document.getElementById('messageInput').disabled = false;
+                        document.getElementById('sendMessageBtn').disabled = false;
+                    });
                 });
-            });
+                
+            } catch (error) {
+                console.error('Konuşmalar yüklenirken hata:', error);
+            }
         }
 
-        // Load chat messages
-        async function loadChatMessages(chatId) {
+        // Load specific conversation
+        async function loadConversation() {
+            if (!selectedBotId || !selectedUserId) return;
+            
             try {
-                const response = await fetch(`${API_URL}/api/messages/${chatId}`, {
+                const response = await fetch(`${API_URL}/api/admin/conversation/${selectedBotId}/${selectedUserId}`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    renderMessages(data.messages || []);
-                }
-            } catch (error) {
-                console.error('Mesaj yükleme hatası:', error);
-            }
-        }
-
-        function renderMessages(messages) {
-            const container = document.getElementById('chatMessages');
-
-            if (messages.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>Henüz mesaj yok</p></div>';
-                return;
-            }
-
-            container.innerHTML = messages.reverse().map(msg => {
-                const isSent = msg.sender_id._id === currentBotId || msg.sender_id === currentBotId;
-                return `
-                    <div class="message ${isSent ? 'sent' : ''}">
-                        <div class="message-content">
-                            <div>${msg.text}</div>
-                            <div class="message-time">
-                                ${new Date(msg.timestamp).toLocaleString('tr-TR', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit',
-                                    day: '2-digit',
-                                    month: '2-digit'
-                                })}
-                            </div>
-                        </div>
+                const data = await response.json();
+                
+                // Update chat header
+                const conversation = document.querySelector(`[data-user-id="${selectedUserId}"]`);
+                const userName = conversation.querySelector('.conversation-name').textContent;
+                document.getElementById('chatUserName').textContent = userName;
+                
+                // Display messages
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = data.messages.map(msg => `
+                    <div class="message ${msg.senderId._id === selectedBotId ? 'message-sent' : 'message-received'}">
+                        <div class="message-content">${msg.content}</div>
+                        <div class="message-time">${new Date(msg.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
-                `;
-            }).join('');
-
-            container.scrollTop = container.scrollHeight;
+                `).join('');
+                
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+            } catch (error) {
+                console.error('Konuşma yüklenirken hata:', error);
+            }
         }
 
         // Send message
-        async function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-
-            if (!text || !currentBotId || !currentReceiverId) return;
-
+        document.getElementById('sendMessageBtn').addEventListener('click', async () => {
+            const messageInput = document.getElementById('messageInput');
+            const content = messageInput.value.trim();
+            
+            if (!content || !selectedBotId || !selectedUserId) return;
+            
             try {
                 const response = await fetch(`${API_URL}/api/admin/send-message`, {
                     method: 'POST',
@@ -232,52 +402,47 @@
                         'Authorization': `Bearer ${authToken}`
                     },
                     body: JSON.stringify({
-                        botId: currentBotId,
-                        receiverId: currentReceiverId,
-                        text: text
+                        botId: selectedBotId,
+                        userId: selectedUserId,
+                        content: content
                     })
                 });
-
-                if (response.ok) {
-                    input.value = '';
-                    loadChatMessages(currentChatId);
-                    loadConversations();
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    messageInput.value = '';
+                    loadConversation(); // Reload conversation
+                    loadConversations(); // Reload conversations list
                 } else {
-                    alert('Mesaj gönderilemedi');
+                    alert('Mesaj gönderilemedi: ' + (data.error || 'Bilinmeyen hata'));
                 }
+                
             } catch (error) {
-                alert('Hata oluştu');
+                console.error('Mesaj gönderirken hata:', error);
+                alert('Mesaj gönderilemedi');
             }
-        }
+        });
 
-        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        // Enter key to send message
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                sendMessage();
+                document.getElementById('sendMessageBtn').click();
             }
         });
 
-        // Logout
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminUsername');
-            window.location.href = '/admin';
-        });
-
-        // Auto-refresh every 10 seconds
-        setInterval(() => {
-            if (currentBotId) {
-                loadConversations();
-                if (currentChatId) {
-                    loadChatMessages(currentChatId);
+        // Resim hata event listener'ları
+        document.addEventListener('error', (e) => {
+            if (e.target.classList.contains('conversation-avatar-img')) {
+                if (!e.target.dataset.fallbackApplied) {
+                    e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">👤</text></svg>';
+                    e.target.dataset.fallbackApplied = 'true';
                 }
             }
-        }, 10000);
+        }, true);
 
         // Load on start
         loadBots();
     </script>
 </body>
 </html>
-
-

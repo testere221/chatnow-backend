@@ -152,7 +152,7 @@ app.get('/admin/users.html', (req, res) => {
 });
 
 app.get('/admin/messages.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin-panel', 'messages.html'));
+  res.sendFile(path.join(__dirname, 'admin-panel', 'messages-full.html'));
 });
 
 app.get('/admin/style.css', (req, res) => {
@@ -2453,6 +2453,145 @@ app.get('/api/admin/thumbnail/:filename', async (req, res) => {
   } catch (error) {
     console.error('Thumbnail error:', error);
     res.status(500).json({ error: 'Thumbnail oluşturulamadı' });
+  }
+});
+
+// Bot mesajlarını getir (admin panel için)
+app.get('/api/admin/bot-messages/:botId', authenticateAdmin, async (req, res) => {
+  try {
+    const { botId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    
+    // Bot'un mesajlarını getir
+    const messages = await Message.find({
+      $or: [
+        { senderId: botId },
+        { receiverId: botId }
+      ]
+    })
+    .populate('senderId', 'name email avatar_image')
+    .populate('receiverId', 'name email avatar_image')
+    .sort({ createdAt: -1 })
+    .limit(limit * 1)
+    .skip((page - 1) * limit);
+    
+    // Konuşma listesi oluştur
+    const conversations = {};
+    messages.forEach(msg => {
+      const otherUserId = msg.senderId._id.toString() === botId ? 
+        msg.receiverId._id.toString() : msg.senderId._id.toString();
+      
+      if (!conversations[otherUserId]) {
+        conversations[otherUserId] = {
+          userId: otherUserId,
+          userName: msg.senderId._id.toString() === botId ? 
+            msg.receiverId.name : msg.senderId.name,
+          userEmail: msg.senderId._id.toString() === botId ? 
+            msg.receiverId.email : msg.senderId.email,
+          userAvatar: msg.senderId._id.toString() === botId ? 
+            msg.receiverId.avatar_image : msg.senderId.avatar_image,
+          lastMessage: msg.content,
+          lastMessageTime: msg.createdAt,
+          unreadCount: 0
+        };
+      }
+      
+      // Son mesajı güncelle
+      if (msg.createdAt > conversations[otherUserId].lastMessageTime) {
+        conversations[otherUserId].lastMessage = msg.content;
+        conversations[otherUserId].lastMessageTime = msg.createdAt;
+      }
+      
+      // Okunmamış mesaj sayısını hesapla
+      if (msg.senderId._id.toString() !== botId && !msg.isRead) {
+        conversations[otherUserId].unreadCount++;
+      }
+    });
+    
+    res.json({
+      conversations: Object.values(conversations).sort((a, b) => 
+        new Date(b.lastMessageTime) - new Date(a.lastMessageTime)
+      ),
+      totalMessages: messages.length
+    });
+    
+  } catch (error) {
+    console.error('Bot messages error:', error);
+    res.status(500).json({ error: 'Mesajlar yüklenirken hata oluştu' });
+  }
+});
+
+// Bot ile kullanıcı arasındaki mesajları getir
+app.get('/api/admin/conversation/:botId/:userId', authenticateAdmin, async (req, res) => {
+  try {
+    const { botId, userId } = req.params;
+    
+    const messages = await Message.find({
+      $or: [
+        { senderId: botId, receiverId: userId },
+        { senderId: userId, receiverId: botId }
+      ]
+    })
+    .populate('senderId', 'name email avatar_image')
+    .populate('receiverId', 'name email avatar_image')
+    .sort({ createdAt: 1 });
+    
+    res.json({ messages });
+    
+  } catch (error) {
+    console.error('Conversation error:', error);
+    res.status(500).json({ error: 'Konuşma yüklenirken hata oluştu' });
+  }
+});
+
+// Admin olarak bot adına mesaj gönder
+app.post('/api/admin/send-message', authenticateAdmin, async (req, res) => {
+  try {
+    const { botId, userId, content, messageType = 'text' } = req.body;
+    
+    if (!botId || !userId || !content) {
+      return res.status(400).json({ error: 'Bot ID, kullanıcı ID ve mesaj içeriği gerekli' });
+    }
+    
+    // Bot ve kullanıcıyı kontrol et
+    const bot = await User.findById(botId);
+    const user = await User.findById(userId);
+    
+    if (!bot || !user) {
+      return res.status(404).json({ error: 'Bot veya kullanıcı bulunamadı' });
+    }
+    
+    // Mesajı oluştur
+    const message = new Message({
+      senderId: botId,
+      receiverId: userId,
+      content: content,
+      messageType: messageType,
+      isRead: false
+    });
+    
+    await message.save();
+    
+    // Mesajı populate et
+    await message.populate('senderId', 'name email avatar_image');
+    await message.populate('receiverId', 'name email avatar_image');
+    
+    // WebSocket ile kullanıcıya mesajı gönder
+    io.to(userId).emit('newMessage', {
+      message: message,
+      chatId: `${botId}_${userId}`
+    });
+    
+    res.json({ 
+      success: true, 
+      message: message,
+      bot: bot,
+      user: user
+    });
+    
+  } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({ error: 'Mesaj gönderilirken hata oluştu' });
   }
 });
 
