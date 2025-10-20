@@ -14,7 +14,7 @@ import { useChat } from '../contexts/ChatContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { NavigationHelper } from '../utils/NavigationHelper';
 import { webSocketService } from '../services/websocket';
-import { ImageCacheService } from '../services/ImageCacheService';
+import ImageCacheService from '../services/ImageCacheService';
 
 /** Types coming from API */
 type PaginatedUsers = {
@@ -231,10 +231,17 @@ export default function Home() {
 
     const handleProfileUpdate = (data: { userId: string; updatedFields: any }) => {
       console.log('🔄 Profil güncellendi (Home):', data);
+      console.log('🔄 ImageCacheService:', ImageCacheService);
       
       // Profil resmi değiştiyse cache'i temizle
       if (data.updatedFields.avatar || data.updatedFields.avatar_image) {
-        ImageCacheService.clearProfileImageCache(data.userId);
+        console.log('🔄 Cache temizleniyor için userId:', data.userId);
+        try {
+          ImageCacheService.clearProfileImageCache(data.userId);
+          console.log('✅ Cache temizlendi');
+        } catch (error) {
+          console.error('❌ Cache temizleme hatası:', error);
+        }
       }
       
       // Kullanıcı listesindeki ilgili kullanıcıyı güncelle

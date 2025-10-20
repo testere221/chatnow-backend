@@ -2661,6 +2661,12 @@ app.put('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
 
     await user.save();
 
+    console.log('🔄 Admin Panel: Kullanıcı güncellendi, WebSocket event gönderiliyor:', {
+      userId: user._id.toString(),
+      avatar: user.avatar,
+      avatar_image: user.avatar_image
+    });
+
     // Kullanıcıya profil güncellemesi bildirimi gönder
     io.emit('profileUpdated', {
       userId: user._id.toString(),
@@ -2676,6 +2682,8 @@ app.put('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
         avatar_image: user.avatar_image
       }
     });
+
+    console.log('✅ Admin Panel: WebSocket event gönderildi');
 
     res.json({ success: true, user });
   } catch (error) {
