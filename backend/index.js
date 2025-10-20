@@ -83,6 +83,8 @@ const io = socketIo(server, {
   pingTimeout: 60000,
   pingInterval: 25000,
   upgradeTimeout: 10000,
+  serveClient: false,
+  allowUpgrades: true,
   maxHttpBufferSize: 1e6
 });
 

@@ -264,26 +264,59 @@
 
         // WebSocket bağlantısı
         let socket = null;
+        let usePolling = false;
+        let pollingInterval = null;
+        
         function connectWebSocket() {
-            socket = new WebSocket(`wss://${window.location.host.replace('https://', '').replace('http://', '')}`);
+            // Railway için WebSocket URL'ini düzelt
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}`;
+            
+            socket = new WebSocket(wsUrl);
             
             socket.onopen = () => {
-                console.log('WebSocket bağlandı');
+                console.log('WebSocket bağlandı:', wsUrl);
+                usePolling = false;
+                if (pollingInterval) {
+                    clearInterval(pollingInterval);
+                    pollingInterval = null;
+                }
             };
             
             socket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleWebSocketMessage(data);
+                try {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                } catch (error) {
+                    console.error('WebSocket mesaj parse hatası:', error);
+                }
             };
             
             socket.onclose = () => {
-                console.log('WebSocket bağlantısı kapandı, yeniden bağlanılıyor...');
-                setTimeout(connectWebSocket, 3000);
+                console.log('WebSocket bağlantısı kapandı, polling moduna geçiliyor...');
+                usePolling = true;
+                startPolling();
+                setTimeout(connectWebSocket, 10000); // 10 saniyede bir tekrar dene
             };
             
             socket.onerror = (error) => {
                 console.error('WebSocket hatası:', error);
+                console.log('WebSocket URL:', wsUrl);
+                usePolling = true;
+                startPolling();
             };
+        }
+        
+        // Polling modu - WebSocket çalışmazsa
+        function startPolling() {
+            if (pollingInterval) return;
+            
+            console.log('Polling modu başlatıldı');
+            pollingInterval = setInterval(() => {
+                if (selectedBotId) {
+                    loadConversations();
+                }
+            }, 2000); // 2 saniyede bir güncelle
         }
 
         // WebSocket mesajlarını işle
@@ -544,13 +577,6 @@
                 }
             }
         }, true);
-
-        // Periyodik güncelleme (5 saniyede bir)
-        setInterval(() => {
-            if (selectedBotId) {
-                loadConversations();
-            }
-        }, 5000);
 
         // Load on start
         loadBots();
