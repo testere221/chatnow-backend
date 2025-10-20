@@ -202,7 +202,7 @@
             botList.innerHTML = bots.map(bot => `
                 <div class="bot-card">
                     <div class="bot-avatar">
-                        <img src="${bot.avatar_image || '/uploads/default-avatar.png'}" alt="${bot.name}" onerror="this.src='/uploads/default-avatar.png'">
+                        <img src="${bot.avatar_image || '/uploads/default-avatar.png'}" alt="${bot.name}" class="bot-avatar-img">
                         <input type="file" id="botAvatar_${bot._id}" accept="image/*" style="display: none;">
                         <button class="btn btn-sm btn-primary" data-bot-id="${bot._id}">Resim Değiştir</button>
                     </div>
@@ -285,7 +285,7 @@
                         ${user.avatar_image ? 
                             `<img src="${user.avatar_image}" 
                                   style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;"
-                                  onerror="this.src='https://ui-avatars.com/api/?name=' + encodeURIComponent('${user.name}')">` :
+                                  class="user-avatar-img">` :
                             `<div style="width: 40px; height: 40px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 18px;">
                                 ${user.gender === 'male' ? '👨' : '👩'}
                              </div>`
@@ -457,8 +457,16 @@
                 return;
             }
 
+            const file = fileInput.files[0];
+            
+            // Resim boyutunu kontrol et (2MB limit)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('Resim çok büyük! Maksimum 2MB olmalı.');
+                return;
+            }
+
             const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+            formData.append('file', file);
 
             statusEl.textContent = 'Yükleniyor...';
 
@@ -480,6 +488,16 @@
                 statusEl.textContent = 'Hata: ' + error.message;
             }
         });
+
+        // Resim hata event listener'ları
+        document.addEventListener('error', (e) => {
+            if (e.target.classList.contains('bot-avatar-img')) {
+                e.target.src = '/uploads/default-avatar.png';
+            } else if (e.target.classList.contains('user-avatar-img')) {
+                const userName = e.target.closest('tr').querySelector('td:nth-child(2) strong').textContent.split(' ')[0];
+                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}`;
+            }
+        }, true);
 
         // Bot resim değiştirme event listener'ları
         document.addEventListener('click', (e) => {

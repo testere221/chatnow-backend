@@ -216,7 +216,7 @@ class ImageCacheService {
   static clearAllProfileImageCache(): void {
     const keysToDelete = Array.from(this.cache.keys()).filter(key => key.startsWith('profile_'));
     keysToDelete.forEach(key => this.cache.delete(key));
-    console.log(`✅ ImageCache: ${keysToDelete.length} profil resmi cache temizlendi`);
+    // console.log(`✅ ImageCache: ${keysToDelete.length} profil resmi cache temizlendi`);
   }
 }
 

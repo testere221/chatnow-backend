@@ -1927,7 +1927,7 @@ io.on('connection', (socket) => {
   // Mesaj gönderme event handler - KALDIRILDI (REST API'de yapılıyor)
   socket.on('sendMessage', async (data) => {
     try {
-      console.log('📨 WebSocket sendMessage - REST API kullanılmalı');
+      // console.log('📨 WebSocket sendMessage - REST API kullanılmalı');
       socket.emit('error', { message: 'WebSocket mesaj gönderme kaldırıldı, REST API kullanın' });
     } catch (error) {
       console.error('❌ WebSocket sendMessage error:', error);
@@ -2019,12 +2019,12 @@ app.delete('/api/messages/delete-chat', authenticateToken, async (req, res) => {
     console.log(`✅ Chat silindi (sadece ${userId} için)`);
 
     // WebSocket ile bildir - SADECE SİLEN KULLANICIYA
-    console.log('📡 WebSocket event gönderiliyor:', { chatId, userId });
+    // console.log('📡 WebSocket event gönderiliyor:', { chatId, userId });
     io.to(userId).emit('chat_deleted', {
       chatId: chatId,
       userId: userId
     });
-    console.log('📡 WebSocket event gönderildi!');
+    // console.log('📡 WebSocket event gönderildi!');
 
     return res.json({ 
       message: 'Chat silindi (sadece sizin için)', 
@@ -2401,7 +2401,22 @@ app.post('/api/admin/upload', authenticateAdmin, upload.single('file'), async (r
     if (!req.file) {
       return res.status(400).json({ error: 'Dosya bulunamadı' });
     }
-    const publicUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    
+    // Production URL'ini kullan
+    const host = req.get('host');
+    const protocol = req.protocol;
+    
+    // Production'da Railway URL'ini kullan
+    let publicUrl;
+    if (process.env.NODE_ENV === 'production' || host?.includes('railway.app')) {
+      publicUrl = `https://observant-wisdom-production-ee9f.up.railway.app/uploads/${req.file.filename}`;
+    } else if (host && host.includes('ngrok-free.app')) {
+      publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    } else {
+      // Local development için
+      publicUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    }
+    
     res.json({ url: publicUrl, filename: req.file.filename });
   } catch (error) {
     console.error('Upload error:', error);
@@ -2661,11 +2676,11 @@ app.put('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
 
     await user.save();
 
-    console.log('🔄 Admin Panel: Kullanıcı güncellendi, WebSocket event gönderiliyor:', {
-      userId: user._id.toString(),
-      avatar: user.avatar,
-      avatar_image: user.avatar_image
-    });
+    // console.log('🔄 Admin Panel: Kullanıcı güncellendi, WebSocket event gönderiliyor:', {
+    //   userId: user._id.toString(),
+    //   avatar: user.avatar,
+    //   avatar_image: user.avatar_image
+    // });
 
     // Kullanıcıya profil güncellemesi bildirimi gönder
     io.emit('profileUpdated', {
