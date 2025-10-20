@@ -1,16 +1,18 @@
 // purchase.tsx — responsive UI for phones and tablets; palette and flow preserved
-import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Platform, useWindowDimensions } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Platform, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useProfile } from '../../contexts/ProfileContext';
 import { NavigationHelper } from '../../utils/NavigationHelper';
+import { ApiService } from '../../config/api';
 
-type DiamondPackage = { id: string; amount: number; priceText: string };
+type DiamondPackage = { id: string; amount: number; priceText: string; product_id?: string };
 type PaymentMethod = { id: string; name: string; icon: keyof typeof Ionicons.glyphMap };
 
-const PACKAGES: DiamondPackage[] = [
+// Fallback packages (eğer backend çalışmazsa)
+const FALLBACK_PACKAGES: DiamondPackage[] = [
   { id: '1', amount: 100, priceText: '10 TL' },
   { id: '2', amount: 500, priceText: '45 TL' },
   { id: '3', amount: 1000, priceText: '80 TL' },
@@ -39,11 +41,46 @@ export default function Purchase() {
   const primary = currentUser?.gender === 'male' ? '#3B82F6' : '#FF6B95';
   const gradient = useMemo<[string, string]>(() => (currentUser?.gender === 'male' ? ['#1e3a8a', '#3b82f6'] : ['#ff5571', '#ff6b95']), [currentUser?.gender]);
 
+  const [packages, setPackages] = useState<DiamondPackage[]>(FALLBACK_PACKAGES);
+  const [loading, setLoading] = useState(true);
   const [selectedPkg, setSelectedPkg] = useState<string>('2');
   const [selectedMethod, setSelectedMethod] = useState<string>('1');
 
+  // Fetch packages from backend
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        const response = await ApiService.request<any[]>('/api/token-packages');
+        
+        if (response && response.length > 0) {
+          // Backend'den gelen paketleri formatla
+          const formattedPackages: DiamondPackage[] = response.map((pkg, index) => ({
+            id: String(index + 1),
+            amount: pkg.token_amount,
+            priceText: `${pkg.price_try.toFixed(2)} TL`,
+            product_id: pkg.product_id,
+          }));
+          
+          setPackages(formattedPackages);
+          // İlk paketi seçili yap
+          if (formattedPackages.length > 0) {
+            setSelectedPkg(formattedPackages[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Paketler yüklenemedi, fallback kullanılıyor:', error);
+        // Hata durumunda fallback paketleri kullan
+        setPackages(FALLBACK_PACKAGES);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPackages();
+  }, []);
+
   const onBuy = () => {
-    const p = PACKAGES.find(x => x.id === selectedPkg);
+    const p = packages.find(x => x.id === selectedPkg);
     if (!p) return;
     addDiamonds(p.amount);
     NavigationHelper.goToProfile();
@@ -63,8 +100,14 @@ export default function Purchase() {
       {/* Content */}
       <ScrollView contentContainerStyle={{ paddingHorizontal: pad, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
         <Text style={[styles.sectionTitle, { fontSize: scale(18) }]}>Jeton Paketleri</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-          {PACKAGES.map((p, i) => {
+        {loading ? (
+          <View style={{ padding: 40, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={primary} />
+            <Text style={{ marginTop: 12, color: '#6B7280', fontSize: scale(14) }}>Paketler yükleniyor...</Text>
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {packages.map((p, i) => {
             const selected = selectedPkg === p.id;
             return (
               <TouchableOpacity
@@ -92,7 +135,8 @@ export default function Purchase() {
               </TouchableOpacity>
             );
           })}
-        </View>
+          </View>
+        )}
 
         <Text style={[styles.sectionTitle, { fontSize: scale(18), marginTop: 16 }]}>Ödeme Yöntemi</Text>
         {METHODS.map(m => {
