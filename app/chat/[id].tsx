@@ -420,33 +420,33 @@ export default function ChatDetail() {
     // WebSocket dinleyicisini ekle
     webSocketService.on('user_info_updated', handleUserInfoUpdate);
     
-    // Periyodik olarak kullanıcı bilgilerini güncelle (her 30 saniyede bir)
-    const interval = setInterval(async () => {
-      try {
-        const userInfo = await getUserInfo(id, true);
-        if (userInfo) {
-          console.log(`📱 setChatUser (periyodik): ${userInfo.name} (${userInfo.id})`);
-          // Periyodik güncellemeyi kapat - getUserState zaten doğru veriyi veriyor
-          // setChatUser((prev: any) => ({
-          //   ...prev,
-          //   name: userInfo.name || prev.name,
-          //   surname: userInfo.surname || prev.surname,
-          //   avatar: userInfo.avatar || prev.avatar,
-          //   avatar_image: userInfo.avatarImage || userInfo.avatar_image || prev.avatar_image,
-          //   bg_color: userInfo.bgColor || userInfo.bg_color || prev.bg_color,
-          //   gender: userInfo.gender || prev.gender,
-          //   last_active: userInfo.lastActive || userInfo.last_active || prev.last_active,
-          //   is_online: userInfo.isOnline !== undefined ? userInfo.isOnline : (userInfo.is_online !== undefined ? userInfo.is_online : prev.is_online)
-          // }));
-        }
-      } catch (error) {
-        // Hata durumunda sessizce devam et
-      }
-    }, 15000); // 15 saniye - daha sık güncelleme
+    // Periyodik güncelleme kapatıldı - getUserState zaten doğru veriyi veriyor
+    // const interval = setInterval(async () => {
+    //   try {
+    //     const userInfo = await getUserInfo(id, true);
+    //     if (userInfo) {
+    //       console.log(`📱 setChatUser (periyodik): ${userInfo.name} (${userInfo.id})`);
+    //       // Periyodik güncellemeyi kapat - getUserState zaten doğru veriyi veriyor
+    //       // setChatUser((prev: any) => ({
+    //       //   ...prev,
+    //       //   name: userInfo.name || prev.name,
+    //       //   surname: userInfo.surname || prev.surname,
+    //       //   avatar: userInfo.avatar || prev.avatar,
+    //       //   avatar_image: userInfo.avatarImage || userInfo.avatar_image || prev.avatar_image,
+    //       //   bg_color: userInfo.bgColor || userInfo.bg_color || prev.bg_color,
+    //       //   gender: userInfo.gender || prev.gender,
+    //       //   last_active: userInfo.lastActive || userInfo.last_active || prev.last_active,
+    //       //   is_online: userInfo.isOnline !== undefined ? userInfo.isOnline : (userInfo.is_online !== undefined ? userInfo.is_online : prev.is_online)
+    //       // }));
+    //     }
+    //   } catch (error) {
+    //     // Hata durumunda sessizce devam et
+    //   }
+    // }, 15000); // 15 saniye - daha sık güncelleme
     
     return () => {
       webSocketService.off('user_info_updated', handleUserInfoUpdate);
-      clearInterval(interval);
+      // clearInterval(interval); // Periyodik güncelleme kapatıldı
     };
   }, [id, getUserInfo]);
 
