@@ -159,20 +159,6 @@ app.get('/admin/style.css', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-panel', 'style.css'));
 });
 
-// Admin image upload (avatar)
-app.post('/api/admin/upload', authenticateAdmin, upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Dosya bulunamadı' });
-    }
-    const publicUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-    res.json({ url: publicUrl, filename: req.file.filename });
-  } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: 'Yükleme sırasında hata oluştu' });
-  }
-});
-
 // Handle preflight requests
 app.options('*', cors());
 
@@ -2408,6 +2394,20 @@ const authenticateAdmin = async (req, res, next) => {
     res.status(401).json({ error: 'Geçersiz admin token' });
   }
 };
+
+// Admin image upload (avatar) - must be after authenticateAdmin is defined
+app.post('/api/admin/upload', authenticateAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Dosya bulunamadı' });
+    }
+    const publicUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    res.json({ url: publicUrl, filename: req.file.filename });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ error: 'Yükleme sırasında hata oluştu' });
+  }
+});
 
 // TEMPORARY: Setup admin (only runs once)
 app.get('/api/setup-admin', async (req, res) => {
