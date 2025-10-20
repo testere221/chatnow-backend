@@ -236,33 +236,37 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
       if (chatWithUser && chatWithUser.otherUser) {
-        const userInfo = {
-          id: chatWithUser.otherUser.id || chatWithUser.otherUser._id,
-          name: chatWithUser.otherUser.name || 'Kullanıcı',
-          surname: chatWithUser.otherUser.surname || '',
-          avatar: chatWithUser.otherUser.avatar || '👤',
-          avatarImage: chatWithUser.otherUser.avatar_image || '',
-          bgColor: chatWithUser.otherUser.bg_color || '#FFB6C1',
-          gender: chatWithUser.otherUser.gender || 'female',
-          isOnline: !!chatWithUser.otherUser.is_online,
-          lastActive: chatWithUser.otherUser.last_active
-        };
-        
-        setUserCache(prev => ({ ...prev, [userId]: userInfo }));
-        
-        // Global state'i de güncelle
-        updateUserState(userId, {
-          isOnline: userInfo.isOnline,
-          lastSeen: userInfo.lastActive || new Date(),
-          name: userInfo.name,
-          surname: userInfo.surname,
-          avatar: userInfo.avatar,
-          avatarImage: userInfo.avatarImage,
-          bgColor: userInfo.bgColor,
-          gender: userInfo.gender
-        });
-        
-        return userInfo;
+        // otherUser'ın ID'sini kontrol et - doğru kullanıcıyı seç
+        const otherUserId = chatWithUser.otherUser.id || chatWithUser.otherUser._id;
+        if (otherUserId === userId) {
+          const userInfo = {
+            id: chatWithUser.otherUser.id || chatWithUser.otherUser._id,
+            name: chatWithUser.otherUser.name || 'Kullanıcı',
+            surname: chatWithUser.otherUser.surname || '',
+            avatar: chatWithUser.otherUser.avatar || '👤',
+            avatarImage: chatWithUser.otherUser.avatar_image || '',
+            bgColor: chatWithUser.otherUser.bg_color || '#FFB6C1',
+            gender: chatWithUser.otherUser.gender || 'female',
+            isOnline: !!chatWithUser.otherUser.is_online,
+            lastActive: chatWithUser.otherUser.last_active
+          };
+          
+          setUserCache(prev => ({ ...prev, [userId]: userInfo }));
+          
+          // Global state'i de güncelle
+          updateUserState(userId, {
+            isOnline: userInfo.isOnline,
+            lastSeen: userInfo.lastActive || new Date(),
+            name: userInfo.name,
+            surname: userInfo.surname,
+            avatar: userInfo.avatar,
+            avatarImage: userInfo.avatarImage,
+            bgColor: userInfo.bgColor,
+            gender: userInfo.gender
+          });
+          
+          return userInfo;
+        }
       }
       
       // Chat verilerinde yoksa API'den al
@@ -644,7 +648,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const newCounts = { ...prevCounts };
         delete newCounts[chatId];
         
-        console.log('✅ Messages marked as read for chat:', chatId, 'count cleared');
+        // console.log('✅ Messages marked as read for chat:', chatId, 'count cleared');
         
         // Toplam count'ı hesapla ve badge'i güncelle
         const totalCount = Object.values(newCounts).reduce((total, count) => total + count, 0);
@@ -1082,7 +1086,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         // Profil güncellemesi için listener
         const handleProfileUpdate = (data: { userId: string; updatedFields: any }) => {
-          console.log('🔄 Profil güncellendi (ChatContext):', data);
+          // console.log('🔄 Profil güncellendi (ChatContext):', data);
           
           // Global user state'i güncelle
           updateUserState(data.userId, {
@@ -1177,7 +1181,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Chat güncellemesi için listener
         const handleChatUpdated = (data: any) => {
-          console.log('🔄 Chat updated:', data);
+          // console.log('🔄 Chat updated:', data);
           const { chatId, lastMessage, lastTime, senderInfo } = data;
           
           setChats(prevChats => 
@@ -1204,12 +1208,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             )
           );
           
-          console.log('✅ Chat listesi güncellendi:', chatId, senderInfo.name);
+          // console.log('✅ Chat listesi güncellendi:', chatId, senderInfo.name);
         };
         
         webSocketService.on('chatUpdated', handleChatUpdated);
         
-        console.log('🔌 WebSocket listeners registered');
+        // console.log('🔌 WebSocket listeners registered');
 
         // Engellenen kullanıcıları yükle
         await loadBlockedUsers();
