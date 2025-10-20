@@ -223,8 +223,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Kullanıcı bilgilerini cache'le
   const getUserInfo = async (userId: string, forceRefresh?: boolean) => {
+    console.log('🔍 getUserInfo çağrıldı:', { userId, forceRefresh });
+    
     // Cache kontrolü
     if (!forceRefresh && userCache[userId]) {
+      console.log('✅ Cache\'den döndürülüyor:', userCache[userId]);
       return userCache[userId];
     }
     
@@ -235,9 +238,28 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return parts[0] === userId || parts[1] === userId;
       });
       
+      console.log('🔍 Chat arama sonucu:', { 
+        userId, 
+        chatWithUser: chatWithUser ? {
+          id: chatWithUser.id,
+          otherUser: chatWithUser.otherUser ? {
+            id: chatWithUser.otherUser.id,
+            _id: chatWithUser.otherUser._id,
+            name: chatWithUser.otherUser.name
+          } : null
+        } : null,
+        totalChats: chats.length
+      });
+      
       if (chatWithUser && chatWithUser.otherUser) {
         // otherUser'ın ID'sini kontrol et - doğru kullanıcıyı seç
         const otherUserId = chatWithUser.otherUser.id || chatWithUser.otherUser._id;
+        console.log('🔍 otherUser ID kontrolü:', { 
+          requestedUserId: userId, 
+          otherUserId, 
+          match: otherUserId === userId 
+        });
+        
         if (otherUserId === userId) {
           const userInfo = {
             id: chatWithUser.otherUser.id || chatWithUser.otherUser._id,
@@ -250,6 +272,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isOnline: !!chatWithUser.otherUser.is_online,
             lastActive: chatWithUser.otherUser.last_active
           };
+          
+          console.log('✅ Chat\'ten userInfo oluşturuldu:', userInfo);
           
           setUserCache(prev => ({ ...prev, [userId]: userInfo }));
           
@@ -266,12 +290,25 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           });
           
           return userInfo;
+        } else {
+          console.log('❌ otherUser ID eşleşmedi, API\'den alınacak');
         }
       }
       
       // Chat verilerinde yoksa API'den al
+      console.log('🌐 API\'den kullanıcı bilgisi alınıyor:', userId);
       const users = await ApiService.getUsers() as any[];
       const userData = users.find((user: any) => user.id === userId);
+      
+      console.log('🔍 API arama sonucu:', { 
+        userId, 
+        userData: userData ? {
+          id: userData.id,
+          name: userData.name,
+          surname: userData.surname
+        } : null,
+        totalUsers: users.length
+      });
       
       if (userData) {
         const userInfo = {
@@ -285,6 +322,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           isOnline: !!userData.is_online,
           lastActive: userData.last_active
         };
+        
+        console.log('✅ API\'den userInfo oluşturuldu:', userInfo);
         
         setUserCache(prev => ({ ...prev, [userId]: userInfo }));
         
