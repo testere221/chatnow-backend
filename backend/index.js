@@ -777,6 +777,19 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
       }
     };
     
+    // Eğer alıcı bir bot ise admin panel için bildirim gönder
+    const receiver = await User.findById(receiverId);
+    if (receiver && receiver.is_bot) {
+      io.emit('adminBotMessage', {
+        type: 'adminBotMessage',
+        botId: receiverId,
+        userId: senderId,
+        message: newMessage,
+        bot: receiver,
+        user: sender
+      });
+    }
+    
     console.log('🔄 Sending chat update:', chatUpdateData);
     
     // Her iki kullanıcıya da chat güncellemesi gönder
@@ -2580,6 +2593,16 @@ app.post('/api/admin/send-message', authenticateAdmin, async (req, res) => {
     io.to(userId).emit('newMessage', {
       message: message,
       chatId: `${botId}_${userId}`
+    });
+    
+    // Admin panel için bot mesaj bildirimi gönder
+    io.emit('adminBotMessage', {
+      type: 'adminBotMessage',
+      botId: botId,
+      userId: userId,
+      message: message,
+      bot: bot,
+      user: user
     });
     
     res.json({ 

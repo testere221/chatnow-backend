@@ -244,6 +244,8 @@
         let authToken = localStorage.getItem('adminToken');
         let selectedBotId = null;
         let selectedUserId = null;
+        let conversations = [];
+        let unreadCounts = {};
 
         // Check authentication
         if (!authToken) {
@@ -259,6 +261,100 @@
             localStorage.removeItem('adminUsername');
             window.location.href = '/admin';
         });
+
+        // WebSocket bağlantısı
+        let socket = null;
+        function connectWebSocket() {
+            socket = new WebSocket(`wss://${window.location.host.replace('https://', '').replace('http://', '')}`);
+            
+            socket.onopen = () => {
+                console.log('WebSocket bağlandı');
+            };
+            
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+            
+            socket.onclose = () => {
+                console.log('WebSocket bağlantısı kapandı, yeniden bağlanılıyor...');
+                setTimeout(connectWebSocket, 3000);
+            };
+            
+            socket.onerror = (error) => {
+                console.error('WebSocket hatası:', error);
+            };
+        }
+
+        // WebSocket mesajlarını işle
+        function handleWebSocketMessage(data) {
+            if (data.type === 'adminBotMessage') {
+                handleNewBotMessage(data);
+            }
+        }
+
+        // Yeni bot mesajını işle
+        function handleNewBotMessage(data) {
+            const { botId, userId, message, bot, user } = data;
+            
+            // Bildirim göster
+            showNotification(`${bot.name} botuna yeni mesaj`, `${user.name}: ${message.text || 'Resim'}`);
+            
+            // Eğer seçili bot bu bot ise konuşmaları yenile
+            if (selectedBotId === botId) {
+                loadConversations();
+                
+                // Eğer bu kullanıcıyla konuşuyorsak mesajları yenile
+                if (selectedUserId === userId) {
+                    loadConversation();
+                }
+            }
+            
+            // Okunmamış sayısını güncelle
+            const conversationKey = `${botId}_${userId}`;
+            unreadCounts[conversationKey] = (unreadCounts[conversationKey] || 0) + 1;
+            updateUnreadBadges();
+        }
+
+        // Bildirim göster
+        function showNotification(title, message) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: message,
+                    icon: '/favicon.ico'
+                });
+            } else if ('Notification' in window && Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification(title, {
+                            body: message,
+                            icon: '/favicon.ico'
+                        });
+                    }
+                });
+            }
+        }
+
+        // Okunmamış badge'leri güncelle
+        function updateUnreadBadges() {
+            document.querySelectorAll('.conversation-item').forEach(item => {
+                const userId = item.dataset.userId;
+                const conversationKey = `${selectedBotId}_${userId}`;
+                const unreadCount = unreadCounts[conversationKey] || 0;
+                
+                let badge = item.querySelector('.unread-badge');
+                if (unreadCount > 0) {
+                    if (!badge) {
+                        badge = document.createElement('div');
+                        badge.className = 'unread-badge';
+                        item.appendChild(badge);
+                    }
+                    badge.textContent = unreadCount;
+                } else if (badge) {
+                    badge.remove();
+                }
+            });
+        }
 
         // Load bots for selection
         async function loadBots() {
@@ -303,14 +399,15 @@
                 });
                 const data = await response.json();
                 
+                conversations = data.conversations;
                 const conversationsList = document.getElementById('conversationsList');
                 
-                if (data.conversations.length === 0) {
+                if (conversations.length === 0) {
                     conversationsList.innerHTML = '<div class="empty-state"><p>Henüz mesaj yok</p></div>';
                     return;
                 }
                 
-                conversationsList.innerHTML = data.conversations.map(conv => `
+                conversationsList.innerHTML = conversations.map(conv => `
                     <div class="conversation-item" data-user-id="${conv.userId}">
                         <div class="conversation-avatar">
                             ${conv.userAvatar ? 
@@ -330,7 +427,6 @@
                             <div class="conversation-last-message">${conv.lastMessage}</div>
                         </div>
                         <div class="conversation-time">${new Date(conv.lastMessageTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</div>
-                        ${conv.unreadCount > 0 ? `<div class="unread-badge">${conv.unreadCount}</div>` : ''}
                     </div>
                 `).join('');
                 
@@ -347,8 +443,16 @@
                         // Enable input
                         document.getElementById('messageInput').disabled = false;
                         document.getElementById('sendMessageBtn').disabled = false;
+                        
+                        // Okunmamış sayısını sıfırla
+                        const conversationKey = `${selectedBotId}_${selectedUserId}`;
+                        unreadCounts[conversationKey] = 0;
+                        updateUnreadBadges();
                     });
                 });
+                
+                // Okunmamış badge'leri güncelle
+                updateUnreadBadges();
                 
             } catch (error) {
                 console.error('Konuşmalar yüklenirken hata:', error);
@@ -441,8 +545,16 @@
             }
         }, true);
 
+        // Periyodik güncelleme (5 saniyede bir)
+        setInterval(() => {
+            if (selectedBotId) {
+                loadConversations();
+            }
+        }, 5000);
+
         // Load on start
         loadBots();
+        connectWebSocket();
     </script>
 </body>
 </html>
