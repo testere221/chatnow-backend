@@ -803,8 +803,8 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
             } catch (error) {
               // Error sending local notification event
             }
-            return;
-          }
+            // Continue to response - don't return here
+          } else {
 
           const message = {
             to: receiver.push_token,
@@ -866,6 +866,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
             // Push notification sent successfully
           } else {
             // Push notification failed
+          }
           }
         } else {
           // Cannot send push notification
@@ -944,17 +945,20 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
     // Güncel kullanıcı bilgilerini al
     const updatedSender = await User.findById(senderId);
     
-    res.status(201).json({ 
+    // Response'u gönder ve hemen return et
+    return res.status(201).json({ 
       message: 'Mesaj gönderildi!', 
       newMessage,
       user: {
         diamonds: updatedSender.diamonds
       }
     });
-    return; // Yanıt gönderildikten sonra fonksiyondan çık
   } catch (error) {
     console.error('❌ Mesaj gönderme hatası:', error);
-    res.status(500).json({ message: 'Mesaj gönderilirken hata oluştu.', error: error.message });
+    // Response zaten gönderildiyse tekrar gönderme
+    if (!res.headersSent) {
+      return res.status(500).json({ message: 'Mesaj gönderilirken hata oluştu.', error: error.message });
+    }
   }
 });
 
@@ -1022,9 +1026,11 @@ app.post('/api/messages/markAsRead', authenticateToken, async (req, res) => {
 
     await chat.save();
 
-    res.json({ message: 'Mesajlar okundu işaretlendi.' });
+    return res.json({ message: 'Mesajlar okundu işaretlendi.' });
   } catch (error) {
-    res.status(500).json({ message: 'Mesajlar okundu işaretlenirken hata oluştu.', error: error.message });
+    if (!res.headersSent) {
+      return res.status(500).json({ message: 'Mesajlar okundu işaretlenirken hata oluştu.', error: error.message });
+    }
   }
 });
 
@@ -2001,7 +2007,7 @@ app.delete('/api/messages/delete-chat', authenticateToken, async (req, res) => {
     });
     console.log('📡 WebSocket event gönderildi!');
 
-    res.json({ 
+    return res.json({ 
       message: 'Chat silindi (sadece sizin için)', 
       deletedMessages: updatedMessages.modifiedCount,
       chatId: chatId
@@ -2009,7 +2015,9 @@ app.delete('/api/messages/delete-chat', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('❌ Mesaj silme hatası:', error);
-    res.status(500).json({ message: 'Mesajlar silinirken hata oluştu', error: error.message });
+    if (!res.headersSent) {
+      return res.status(500).json({ message: 'Mesajlar silinirken hata oluştu', error: error.message });
+    }
   }
 });
 
