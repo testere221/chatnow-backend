@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesajlar - Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>💬 Mesaj Yönetimi</h2>
+            <div class="user-info">
+                <span id="adminUsername"></span>
+                <button class="btn btn-logout" id="logoutBtn">Çıkış</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="nav-tabs">
+                <a href="/admin" class="tab">💎 Paketler</a>
+                <a href="/admin/users.html" class="tab">👥 Kullanıcılar</a>
+                <a href="/admin/messages.html" class="tab active">💬 Mesajlar</a>
+            </div>
+
+            <!-- Bot Selection -->
+            <div class="bot-selection">
+                <label style="font-weight: 600; margin-right: 10px;">Destek Botu:</label>
+                <select id="botSelect" style="padding: 8px 12px; border-radius: 6px; border: 2px solid #e5e7eb;">
+                    <option value="">Seçiniz...</option>
+                </select>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="chat-container" id="chatContainer" style="display: none;">
+                <!-- Conversations List -->
+                <div class="conversations-list" id="conversationsList">
+                    <div class="empty-state">
+                        <p>Konuşma seçiniz</p>
+                    </div>
+                </div>
+
+                <!-- Chat Box -->
+                <div class="chat-box">
+                    <div id="chatHeader" style="padding: 15px; border-bottom: 1px solid #e5e7eb; background: #f8f9fa;">
+                        <h4 id="chatUserName" style="margin: 0; color: #333;">Sohbet seçiniz</h4>
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="empty-state">
+                            <p>Konuşma seçiniz</p>
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="messageInput" placeholder="Mesajınızı yazın..." disabled>
+                        <button class="btn btn-primary" id="sendBtn" disabled>Gönder</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let authToken = localStorage.getItem('adminToken');
+        let currentBotId = null;
+        let currentChatId = null;
+        let currentReceiverId = null;
+
+        if (!authToken) {
+            window.location.href = '/admin';
+        }
+
+        document.getElementById('adminUsername').textContent = localStorage.getItem('adminUsername') || 'Admin';
+
+        // Load bots
+        async function loadBots() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/support-bots`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const bots = await response.json();
+                    const select = document.getElementById('botSelect');
+                    
+                    bots.forEach(bot => {
+                        const option = document.createElement('option');
+                        option.value = bot._id;
+                        option.textContent = bot.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Bot yükleme hatası:', error);
+            }
+        }
+
+        // Bot selection changed
+        document.getElementById('botSelect').addEventListener('change', (e) => {
+            currentBotId = e.target.value;
+            if (currentBotId) {
+                document.getElementById('chatContainer').style.display = 'grid';
+                loadConversations();
+            } else {
+                document.getElementById('chatContainer').style.display = 'none';
+            }
+        });
+
+        // Load conversations
+        async function loadConversations() {
+            if (!currentBotId) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/conversations/${currentBotId}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const conversations = await response.json();
+                    renderConversations(conversations);
+                }
+            } catch (error) {
+                console.error('Konuşma yükleme hatası:', error);
+            }
+        }
+
+        function renderConversations(conversations) {
+            const list = document.getElementById('conversationsList');
+
+            if (conversations.length === 0) {
+                list.innerHTML = '<div class="empty-state"><p>Henüz mesaj yok</p></div>';
+                return;
+            }
+
+            list.innerHTML = conversations.map(conv => `
+                <div class="conversation-item" data-chat-id="${conv.chatId}" data-user-id="${conv.user._id}">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <img src="${conv.user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(conv.user.name)}"
+                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #333;">${conv.user.name}</div>
+                            <div style="font-size: 13px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                ${conv.lastMessage ? conv.lastMessage.text : 'Mesaj yok'}
+                            </div>
+                        </div>
+                        ${conv.unreadCount > 0 ? `
+                            <span style="background: #ef4444; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600;">
+                                ${conv.unreadCount}
+                            </span>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            // Add click handlers
+            list.querySelectorAll('.conversation-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    currentChatId = item.getAttribute('data-chat-id');
+                    currentReceiverId = item.getAttribute('data-user-id');
+                    
+                    list.querySelectorAll('.conversation-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    
+                    loadChatMessages(currentChatId);
+                    
+                    const userName = item.querySelector('div[style*="font-weight: 600"]').textContent;
+                    document.getElementById('chatUserName').textContent = userName;
+                    document.getElementById('messageInput').disabled = false;
+                    document.getElementById('sendBtn').disabled = false;
+                });
+            });
+        }
+
+        // Load chat messages
+        async function loadChatMessages(chatId) {
+            try {
+                const response = await fetch(`${API_URL}/api/messages/${chatId}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    renderMessages(data.messages || []);
+                }
+            } catch (error) {
+                console.error('Mesaj yükleme hatası:', error);
+            }
+        }
+
+        function renderMessages(messages) {
+            const container = document.getElementById('chatMessages');
+
+            if (messages.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Henüz mesaj yok</p></div>';
+                return;
+            }
+
+            container.innerHTML = messages.reverse().map(msg => {
+                const isSent = msg.sender_id._id === currentBotId || msg.sender_id === currentBotId;
+                return `
+                    <div class="message ${isSent ? 'sent' : ''}">
+                        <div class="message-content">
+                            <div>${msg.text}</div>
+                            <div class="message-time">
+                                ${new Date(msg.timestamp).toLocaleString('tr-TR', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    day: '2-digit',
+                                    month: '2-digit'
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+
+            if (!text || !currentBotId || !currentReceiverId) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/send-message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        botId: currentBotId,
+                        receiverId: currentReceiverId,
+                        text: text
+                    })
+                });
+
+                if (response.ok) {
+                    input.value = '';
+                    loadChatMessages(currentChatId);
+                    loadConversations();
+                } else {
+                    alert('Mesaj gönderilemedi');
+                }
+            } catch (error) {
+                alert('Hata oluştu');
+            }
+        }
+
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUsername');
+            window.location.href = '/admin';
+        });
+
+        // Auto-refresh every 10 seconds
+        setInterval(() => {
+            if (currentBotId) {
+                loadConversations();
+                if (currentChatId) {
+                    loadChatMessages(currentChatId);
+                }
+            }
+        }, 10000);
+
+        // Load on start
+        loadBots();
+    </script>
+</body>
+</html>
+
+

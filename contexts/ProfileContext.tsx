@@ -2,9 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { API_CONFIG } from '../config/api';
+import ImageCacheService from '../services/ImageCacheService';
 import { useAuth } from './AuthContext';
 import { useChat } from './ChatContext';
-import ImageCacheService from '../services/ImageCacheService';
 
 export interface UserProfile {
   id: string;

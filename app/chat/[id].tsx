@@ -117,6 +117,7 @@ const MessageImageWithAutoConvert = ({ imageUrl, style }: { imageUrl: string | n
   
   useEffect(() => {
     const convertImage = async () => {
+      console.log('🔍 MessageImageWithAutoConvert - imageUrl:', imageUrl);
       if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:') && !imageUrl.startsWith('file://') && !imageUrl.startsWith('content://')) {
         console.log('🔄 Mesaj Base64 otomatik HTTP\'ye çevriliyor...');
         const httpUrl = await convertBase64ToHttpAuto(imageUrl);
@@ -124,6 +125,7 @@ const MessageImageWithAutoConvert = ({ imageUrl, style }: { imageUrl: string | n
         console.log('✅ Mesaj HTTP URL güncellendi:', httpUrl);
       } else {
         setImageUri(imageUrl || '');
+        console.log('✅ Mesaj URL direkt kullanılıyor:', imageUrl);
       }
     };
     
@@ -495,9 +497,11 @@ export default function ChatDetail() {
         body: formData,
       });
       const up = await upload.json();
+      console.log('🔍 Resim yükleme sonucu:', up);
       if (!up?.success || !up?.imageUrl) throw new Error('upload-fail');
 
       try {
+        console.log('🔍 Resim URL ile mesaj gönderiliyor:', up.imageUrl);
         const response: any = await sendMessage(id as string, '📷 Resim', up.imageUrl);
         if (response?.updatedDiamonds !== undefined) updateDiamonds(response.updatedDiamonds);
       } catch (err: any) {

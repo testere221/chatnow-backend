@@ -1,12 +1,12 @@
 // purchase.tsx — responsive UI for phones and tablets; palette and flow preserved
-import React, { useMemo, useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Platform, useWindowDimensions, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ApiService } from '../../config/api';
 import { useProfile } from '../../contexts/ProfileContext';
 import { NavigationHelper } from '../../utils/NavigationHelper';
-import { ApiService } from '../../config/api';
 
 type DiamondPackage = { id: string; amount: number; priceText: string; product_id?: string };
 type PaymentMethod = { id: string; name: string; icon: keyof typeof Ionicons.glyphMap };
