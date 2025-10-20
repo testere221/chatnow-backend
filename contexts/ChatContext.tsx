@@ -34,7 +34,7 @@ export interface Chat {
   timestamp?: string;
   // Diğer kullanıcı bilgileri
   otherUser?: {
-    id: string;
+    id?: string;
     _id?: string;
     name: string;
     surname?: string;
@@ -1104,7 +1104,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               const parts = chat.id.split('_');
               const otherUserId = parts[0] === data.userId ? parts[1] : parts[1] === data.userId ? parts[0] : null;
               
-              if (otherUserId && parts.length >= 2) {
+              if (otherUserId && parts.length >= 2 && chat.otherUser) {
                 return {
                   ...chat,
                   name: data.updatedFields.name,
@@ -1112,6 +1112,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   bgColor: data.updatedFields.bg_color,
                   otherUser: {
                     ...chat.otherUser,
+                    id: chat.otherUser.id || data.userId,
                     name: data.updatedFields.name,
                     surname: data.updatedFields.surname,
                     avatar: data.updatedFields.avatar,

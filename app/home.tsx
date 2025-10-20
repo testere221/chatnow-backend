@@ -13,7 +13,7 @@ import { User as AppUser } from '../contexts/AuthContext';
 import { useChat } from '../contexts/ChatContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { NavigationHelper } from '../utils/NavigationHelper';
-import webSocketService from '../services/websocket';
+import { webSocketService } from '../services/websocket';
 
 /** Types coming from API */
 type PaginatedUsers = {
