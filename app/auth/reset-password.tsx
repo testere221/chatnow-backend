@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import ApiService from '../../services/ApiService';
+import { ApiService } from '../../config/api';
 
 export default function ResetPasswordScreen() {
   const { token } = useLocalSearchParams();

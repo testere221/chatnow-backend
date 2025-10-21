@@ -216,7 +216,6 @@ export default function ChatDetail() {
   useEffect(() => {
     const userState = getUserState(id);
     if (userState) {
-      console.log(`📱 useEffect (getUserState): ${userState.name} (${id}) - userState:`, userState);
       setChatUser({
         id: id,
         name: userState.name || 'Kullanıcı',
@@ -225,7 +224,7 @@ export default function ChatDetail() {
         avatar_image: userState.avatarImage || '',
         bg_color: userState.bgColor || '#999',
         gender: userState.gender || 'female',
-        last_active: userState.lastSeen?.toISOString() || new Date().toISOString(),
+        last_active: userState.lastSeen instanceof Date ? userState.lastSeen.toISOString() : (userState.lastSeen || new Date().toISOString()),
         is_online: userState.isOnline || false,
       });
     }
@@ -381,7 +380,7 @@ export default function ChatDetail() {
       try {
         const userInfo = await getUserInfo(id, true);
         if (userInfo) {
-          console.log(`📱 setChatUser (getUserInfo): ${userInfo.name} (${userInfo.id})`);
+          console.log(`🎯 CHAT AÇILDI - ${userInfo.name} (${userInfo.id})`);
           setChatUser({
             id: userInfo.id || userInfo._id,
             name: userInfo.name, surname: userInfo.surname,
@@ -682,7 +681,6 @@ export default function ChatDetail() {
                 const name = chatUser?.name || '';
                 const surname = chatUser?.surname || '';
                 const fullName = surname ? `${name} ${surname}`.trim() : name || '';
-                console.log(`📱 Chat ekranı isim: ${fullName} (${chatUser?.id})`);
                 return fullName;
               })()}
             </Text>

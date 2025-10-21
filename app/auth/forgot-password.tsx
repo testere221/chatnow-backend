@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import ApiService from '../../services/ApiService';
+import { ApiService } from '../../config/api';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
