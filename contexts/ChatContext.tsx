@@ -153,6 +153,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   // Processed messages için Set
   const processedMessagesRef = useRef<Set<string>>(new Set());
+  
+  // Processed events için Set (duplicate event kontrolü)
+  const processedEventsRef = useRef<Map<string, number>>(new Map());
 
   // Toplam okunmamış mesaj sayısını hesapla
   const getTotalUnreadCount = useCallback(() => {
@@ -223,63 +226,13 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Kullanıcı bilgilerini cache'le
   const getUserInfo = async (userId: string, forceRefresh?: boolean) => {
-    console.log(`🔍 getUserInfo: ${userId}`);
-    
     // Cache kontrolü
     if (!forceRefresh && userCache[userId]) {
-      console.log(`✅ Cache: ${userCache[userId].name} (${userId})`);
       return userCache[userId];
     }
     
     try {
-      // Önce chat verilerinden kullanıcı bilgilerini kontrol et
-      const chatWithUser = chats.find(chat => {
-        const parts = chat.id.split('_');
-        return parts[0] === userId || parts[1] === userId;
-      });
-      
-      console.log(`🔍 Chat arama: ${userId} -> ${chatWithUser ? chatWithUser.id : 'BULUNAMADI'}`);
-      
-      if (chatWithUser && chatWithUser.otherUser) {
-        const otherUserId = chatWithUser.otherUser.id || chatWithUser.otherUser._id;
-        console.log(`🔍 ID kontrol: ${userId} === ${otherUserId} -> ${otherUserId === userId}`);
-        
-        if (otherUserId === userId) {
-          const userInfo = {
-            id: chatWithUser.otherUser.id || chatWithUser.otherUser._id,
-            name: chatWithUser.otherUser.name || 'Kullanıcı',
-            surname: chatWithUser.otherUser.surname || '',
-            avatar: chatWithUser.otherUser.avatar || '👤',
-            avatarImage: chatWithUser.otherUser.avatar_image || '',
-            bgColor: chatWithUser.otherUser.bg_color || '#FFB6C1',
-            gender: chatWithUser.otherUser.gender || 'female',
-            isOnline: !!chatWithUser.otherUser.is_online,
-            lastActive: chatWithUser.otherUser.last_active
-          };
-          
-          console.log(`✅ Chat'ten: ${userInfo.name} (${userInfo.id})`);
-          
-          setUserCache(prev => ({ ...prev, [userId]: userInfo }));
-          
-          // Global state'i de güncelle
-          updateUserState(userId, {
-            isOnline: userInfo.isOnline,
-            lastSeen: userInfo.lastActive || new Date(),
-            name: userInfo.name,
-            surname: userInfo.surname,
-            avatar: userInfo.avatar,
-            avatarImage: userInfo.avatarImage,
-            bgColor: userInfo.bgColor,
-            gender: userInfo.gender
-          });
-          
-          return userInfo;
-        } else {
-          console.log(`❌ ID eşleşmedi: ${userId} !== ${otherUserId}`);
-        }
-      }
-      
-      console.log(`🌐 API'den alınıyor: ${userId}`);
+      // Direkt API'den al - chat.otherUser yanlış veri içeriyor!
       const users = await ApiService.getUsers() as any[];
       const userData = users.find((user: any) => user.id === userId);
       
@@ -295,8 +248,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           isOnline: !!userData.is_online,
           lastActive: userData.last_active
         };
-        
-        console.log(`✅ API'den: ${userInfo.name} (${userInfo.id})`);
         
         setUserCache(prev => ({ ...prev, [userId]: userInfo }));
         
@@ -315,7 +266,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return userInfo;
       } else {
         // Kullanıcı bulunamadı, varsayılan bilgiler döndür
-        console.log('⚠️ Kullanıcı bulunamadı, varsayılan bilgiler kullanılıyor:', userId);
         const defaultUserInfo = {
           id: userId,
           name: 'Kullanıcı',
@@ -1078,6 +1028,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // MessageSent event'ini dinle (kendi mesajlarımız için)
         const handleMessageSent = (data: { messageId: string; chatId: string; message: any }) => {
+          // Duplicate event kontrolü
+          const eventKey = `messageSent_${data.messageId}`;
+          const now = Date.now();
+          const lastProcessed = processedEventsRef.current.get(eventKey);
+          
+          if (lastProcessed && (now - lastProcessed) < 1000) {
+            console.log('⚠️ Duplicate messageSent event ignored:', data.messageId);
+            return;
+          }
+          
+          processedEventsRef.current.set(eventKey, now);
+          
           // Kendi mesajlarımız için chat listesini güncelle ve en üste taşı (count değişmez)
           setChats(prevChats => {
             const updatedChats = prevChats.map(chat => {
@@ -1176,14 +1138,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         };
 
-        // Önce tüm listener'ları temizle
-        webSocketService.off('userOnline', handleUserOnline);
-        webSocketService.off('messageForCount', handleNewMessage);
-        webSocketService.off('messageSent', handleMessageSent);
-        webSocketService.off('chat_deleted', handleChatDeleted);
-        webSocketService.off('profileUpdated', handleProfileUpdate);
-        
-        // Sonra tekrar ekle (sadece bir kez)
+        // Listener'ları ekle (sadece bir kez)
         webSocketService.on('userOnline', handleUserOnline);
         webSocketService.on('messageForCount', handleNewMessage);
         webSocketService.on('messageSent', handleMessageSent);
@@ -1193,34 +1148,21 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Chat güncellemesi için listener
         const handleChatUpdated = (data: any) => {
-          // console.log('🔄 Chat updated:', data);
-          const { chatId, lastMessage, lastTime, senderInfo } = data;
+          const { chatId, lastMessage, lastTime } = data;
           
-          setChats(prevChats => 
-            prevChats.map(chat => 
+          // SADECE lastMessage ve lastTime güncelle
+          // name/avatar GÜNCELLEMİYORUZ - getUserInfo'dan geliyor zaten!
+          setChats(prevChats => {
+            return prevChats.map(chat => 
               chat.id === chatId 
                 ? {
                     ...chat,
                     lastMessage: lastMessage,
-                    lastTime: new Date(lastTime),
-                    name: senderInfo.name,
-                    avatar: senderInfo.avatar,
-                    bgColor: senderInfo.bg_color,
-                    gender: senderInfo.gender,
-                    otherUser: {
-                      ...chat.otherUser,
-                      id: chat.otherUser?.id || senderInfo.id,
-                      name: senderInfo.name,
-                      avatar: senderInfo.avatar,
-                      bg_color: senderInfo.bg_color,
-                      gender: senderInfo.gender
-                    }
+                    lastTime: new Date(lastTime)
                   }
                 : chat
-            )
-          );
-          
-          // console.log('✅ Chat listesi güncellendi:', chatId, senderInfo.name);
+            );
+          });
         };
         
         webSocketService.on('chatUpdated', handleChatUpdated);
@@ -1240,6 +1182,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           webSocketService.off('chat_deleted', handleChatDeleted);
           webSocketService.off('newMessage', handleNewMessageForChatList);
           webSocketService.off('chatUpdated', handleChatUpdated);
+          webSocketService.off('profileUpdated', handleProfileUpdate);
         };
       } catch (error) {
         // Error setting up listeners
