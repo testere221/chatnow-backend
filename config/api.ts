@@ -189,9 +189,46 @@ export class ApiService {
     await this.removeToken();
   }
 
+  // Şifre sıfırlama API'leri
+  static async forgotPassword(email: string) {
+    return this.request(API_CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  static async verifyResetToken(token: string) {
+    return this.request(API_CONFIG.ENDPOINTS.AUTH.VERIFY_RESET_TOKEN, {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+  }
+
+  static async resetPassword(token: string, newPassword: string) {
+    return this.request(API_CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD, {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    });
+  }
+
   // User methods
   static async getUsers() {
     return this.request(API_CONFIG.ENDPOINTS.USERS.LIST);
+  }
+
+  static async getUserProfile(userId: string) {
+    return this.request(`${API_CONFIG.ENDPOINTS.USERS.PROFILE}/${userId}`);
+  }
+
+  static async updateUserProfile(userId: string, userData: any) {
+    return this.request(API_CONFIG.ENDPOINTS.USERS.UPDATE, {
+      method: 'PUT',
+      body: JSON.stringify({ userId, ...userData }),
+    });
+  }
+
+  static async getUserInfo(userId: string) {
+    return this.request(`${API_CONFIG.ENDPOINTS.USERS.PROFILE}/${userId}`);
   }
 
   // Message methods
@@ -253,6 +290,17 @@ export class ApiService {
     return response;
   }
 
+  static async getMessagesByUserId(userId: string, page: number = 1, limit: number = 50) {
+    return this.request(`${API_CONFIG.ENDPOINTS.MESSAGES.GET}/${userId}?page=${page}&limit=${limit}`);
+  }
+
+  static async markAsRead(messageId: string) {
+    return this.request(API_CONFIG.ENDPOINTS.MESSAGES.MARK_AS_READ, {
+      method: 'PUT',
+      body: JSON.stringify({ messageId }),
+    });
+  }
+
   static async markMessagesAsRead(chatId: string) {
     return Promise.race([
       this.request(API_CONFIG.ENDPOINTS.MESSAGES.MARK_AS_READ, {
@@ -269,6 +317,10 @@ export class ApiService {
   static async getChats() {
     const response = await this.request(API_CONFIG.ENDPOINTS.CHATS.LIST);
     return response;
+  }
+
+  static async getChatMessages(chatId: string, page: number = 1, limit: number = 50) {
+    return this.request(`${API_CONFIG.ENDPOINTS.CHATS.MESSAGES}/${chatId}?page=${page}&limit=${limit}`);
   }
 
   // User profile methods
@@ -311,5 +363,31 @@ export class ApiService {
       console.error('🔧 ApiService.deleteChat hatası:', error);
       throw error;
     }
+  }
+
+  // Blocks API'leri
+  static async blockUser(userId: string, blockedUserId: string) {
+    return this.request(API_CONFIG.ENDPOINTS.BLOCKS.CREATE, {
+      method: 'POST',
+      body: JSON.stringify({ userId, blockedUserId }),
+    });
+  }
+
+  static async unblockUser(userId: string, blockedUserId: string) {
+    return this.request(API_CONFIG.ENDPOINTS.BLOCKS.DELETE, {
+      method: 'DELETE',
+      body: JSON.stringify({ userId, blockedUserId }),
+    });
+  }
+
+  static async getBlockedUsers(userId: string) {
+    return this.request(`${API_CONFIG.ENDPOINTS.BLOCKS.LIST}/${userId}`);
+  }
+
+  // Account deletion
+  static async deleteAccount() {
+    return this.request(API_CONFIG.ENDPOINTS.AUTH.DELETE_ACCOUNT, {
+      method: 'DELETE',
+    });
   }
 }
