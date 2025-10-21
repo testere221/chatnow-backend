@@ -369,13 +369,17 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Mesaj gönderildikten sonra chat listesini güncelle
       const chatId = [currentUser.id, receiverId].sort().join('_');
-      const existingChatIndex = chats.findIndex(chat => chat.id === chatId);
+      
+      console.log('📤 sendMessage çağrıldı:', { receiverId, chatId });
 
-      if (existingChatIndex !== -1) {
-        // Update existing chat and move to top
-        setChats(prevChats => {
-          const updatedChats = prevChats.map((chat, index) =>
-            index === existingChatIndex
+      setChats(prevChats => {
+        const existingChat = prevChats.find(chat => chat.id === chatId);
+        
+        if (existingChat) {
+          console.log('✅ Mevcut chat güncelleniyor:', chatId);
+          // Update existing chat and move to top
+          const updatedChats = prevChats.map(chat =>
+            chat.id === chatId
               ? {
                   ...chat,
                   lastMessage: text || 'Resim',
@@ -386,8 +390,15 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           // Güncellenen chat'i en üste taşı - WhatsApp gibi sıralama
           return updatedChats.sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
-        });
-      } else {
+        }
+        
+        // Yeni chat oluşturulacak, prevChats'i değiştirme
+        console.log('🆕 Yeni chat oluşturulacak:', chatId);
+        return prevChats;
+      });
+
+      const existingChatCheck = chats.find(chat => chat.id === chatId);
+      if (!existingChatCheck) {
         // Create new chat
         try {
           const userInfo = await getUserInfo(receiverId, true);
