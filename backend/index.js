@@ -2796,7 +2796,7 @@ app.get('/api/token-packages', async (req, res) => {
 // Get all users
 app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
   try {
-    const { search, page = 1, limit = 20 } = req.query;
+    const { search, page = 1, limit = 20, user_type } = req.query;
     const skip = (page - 1) * limit;
 
     let query = {};
@@ -2807,6 +2807,11 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
           { email: { $regex: search, $options: 'i' } }
         ]
       };
+    }
+
+    // User type filter
+    if (user_type && (user_type === 'normal' || user_type === 'manual')) {
+      query.user_type = user_type;
     }
 
     const users = await User.find(query)
@@ -2843,6 +2848,51 @@ app.get('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ error: 'Kullanıcı yüklenirken hata oluştu' });
+  }
+});
+
+// Delete user
+app.delete('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+    
+    // Delete user's messages
+    await Message.deleteMany({
+      $or: [
+        { sender_id: userId },
+        { receiver_id: userId }
+      ]
+    });
+    
+    // Delete user's chats
+    await Chat.deleteMany({
+      $or: [
+        { user1Id: userId },
+        { user2Id: userId }
+      ]
+    });
+    
+    // Delete user's blocks
+    await Block.deleteMany({
+      $or: [
+        { blocker_id: userId },
+        { blocked_id: userId }
+      ]
+    });
+    
+    // Delete user
+    await User.findByIdAndDelete(userId);
+    
+    res.json({ message: 'Kullanıcı başarıyla silindi' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Kullanıcı silinirken hata oluştu' });
   }
 });
 

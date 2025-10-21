@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema({
   hobbies: [{ type: String }],
   push_token: { type: String },
   platform: { type: String },
+  user_type: { type: String, enum: ['normal', 'manual'], default: 'normal' }, // normal: kayıt olan, manual: admin tarafından eklenen
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now }
 });

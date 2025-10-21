@@ -26,6 +26,11 @@
 
             <div class="search-bar">
                 <input type="text" id="searchInput" placeholder="Kullanıcı ara (isim veya email)...">
+                <select id="userTypeFilter" class="user-type-filter">
+                    <option value="">Tüm Kullanıcılar</option>
+                    <option value="normal">Normal Kayıt</option>
+                    <option value="manual">Manuel Eklenen</option>
+                </select>
                 <button class="btn btn-success" id="addBotBtn">+ Destek Botu Ekle</button>
             </div>
             
@@ -50,6 +55,17 @@
                     <tr><td colspan="7" class="empty-state">Yükleniyor...</td></tr>
                 </tbody>
             </table>
+            
+            <!-- Pagination Controls -->
+            <div id="paginationControls" class="pagination-controls" style="display: none;">
+                <div class="pagination-info">
+                    <span id="paginationInfo">Sayfa 1 / 1</span>
+                </div>
+                <div class="pagination-buttons">
+                    <button id="prevPageBtn" class="btn btn-secondary" disabled>← Önceki</button>
+                    <button id="nextPageBtn" class="btn btn-secondary" disabled>Sonraki →</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -139,6 +155,10 @@
         const API_URL = window.location.origin;
         let authToken = localStorage.getItem('adminToken');
         let editingUserId = null;
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentSearch = '';
+        let currentUserType = '';
 
         if (!authToken) {
             window.location.href = '/admin';
@@ -146,11 +166,23 @@
 
         document.getElementById('adminUsername').textContent = localStorage.getItem('adminUsername') || 'Admin';
 
-        // Load users
-        async function loadUsers(search = '') {
+        // Load users with pagination
+        async function loadUsers(search = '', page = 1, userType = '') {
             try {
-                let url = `${API_URL}/api/admin/users`;
-                if (search) url += `?search=${encodeURIComponent(search)}`;
+                let url = `${API_URL}/api/admin/users?page=${page}&limit=20`;
+                if (search) {
+                    url += `&search=${encodeURIComponent(search)}`;
+                    currentSearch = search;
+                } else {
+                    currentSearch = '';
+                }
+                
+                if (userType) {
+                    url += `&user_type=${userType}`;
+                    currentUserType = userType;
+                } else {
+                    currentUserType = '';
+                }
 
                 const response = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
@@ -166,11 +198,33 @@
 
                 const data = await response.json();
                 renderUsers(data.users);
+                updatePagination(data.pagination);
             } catch (error) {
                 console.error(error);
                 document.getElementById('usersBody').innerHTML = `
                     <tr><td colspan="7" class="empty-state">Hata: ${error.message}</td></tr>
                 `;
+            }
+        }
+
+        // Update pagination controls
+        function updatePagination(pagination) {
+            currentPage = pagination.page;
+            totalPages = pagination.totalPages;
+            
+            const paginationControls = document.getElementById('paginationControls');
+            const paginationInfo = document.getElementById('paginationInfo');
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+            
+            if (totalPages > 1) {
+                paginationControls.style.display = 'flex';
+                paginationInfo.textContent = `Sayfa ${currentPage} / ${totalPages} (Toplam: ${pagination.total} kullanıcı)`;
+                
+                prevBtn.disabled = currentPage <= 1;
+                nextBtn.disabled = currentPage >= totalPages;
+            } else {
+                paginationControls.style.display = 'none';
             }
         }
 
@@ -316,6 +370,9 @@
                         <button class="btn btn-primary btn-small edit-user-btn" data-id="${user._id}" data-diamonds="${user.diamonds}">
                             Düzenle
                         </button>
+                        <button class="btn btn-danger btn-small delete-user-btn" data-id="${user._id}" data-name="${user.name}">
+                            Sil
+                        </button>
                     </td>
                 </tr>
             `).join('');
@@ -326,8 +383,26 @@
         document.getElementById('searchInput').addEventListener('input', (e) => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
-                loadUsers(e.target.value);
+                loadUsers(e.target.value, 1, currentUserType); // Reset to page 1 when searching
             }, 300);
+        });
+
+        // Pagination button events
+        document.getElementById('prevPageBtn').addEventListener('click', () => {
+            if (currentPage > 1) {
+                loadUsers(currentSearch, currentPage - 1, currentUserType);
+            }
+        });
+
+        document.getElementById('nextPageBtn').addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                loadUsers(currentSearch, currentPage + 1, currentUserType);
+            }
+        });
+
+        // User type filter event
+        document.getElementById('userTypeFilter').addEventListener('change', (e) => {
+            loadUsers(currentSearch, 1, e.target.value); // Reset to page 1 when filtering
         });
 
         // Bot Modal
@@ -525,6 +600,34 @@
                 const fileInput = document.getElementById(`botAvatar_${botId}`);
                 if (fileInput) {
                     fileInput.click();
+                }
+            }
+        });
+
+        // Delete user functionality
+        document.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('delete-user-btn')) {
+                const userId = e.target.getAttribute('data-id');
+                const userName = e.target.getAttribute('data-name');
+                
+                if (confirm(`"${userName}" kullanıcısını silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz ve kullanıcının tüm mesajları, sohbetleri ve engellemeleri silinecektir.`)) {
+                    try {
+                        const response = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${authToken}` }
+                        });
+                        
+                        if (response.ok) {
+                            alert('Kullanıcı başarıyla silindi');
+                            loadUsers(currentSearch, currentPage, currentUserType); // Reload current page
+                        } else {
+                            const error = await response.json();
+                            alert(`Hata: ${error.error}`);
+                        }
+                    } catch (error) {
+                        console.error('Delete user error:', error);
+                        alert('Kullanıcı silinirken hata oluştu');
+                    }
                 }
             }
         });
