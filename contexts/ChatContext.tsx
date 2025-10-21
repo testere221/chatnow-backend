@@ -1051,10 +1051,16 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           processedEventsRef.current.set(eventKey, now);
           
+          console.log('📨 messageSent event işleniyor:', { messageId: data.messageId, chatId: data.chatId, text: data.message.text });
+          
           // Kendi mesajlarımız için chat listesini güncelle ve en üste taşı (count değişmez)
           setChats(prevChats => {
+            const matchedChat = prevChats.find(chat => chat.id === data.chatId);
+            console.log('🔍 messageSent - Chat bulundu mu?', matchedChat ? `EVET: ${matchedChat.name}` : 'HAYIR');
+            
             const updatedChats = prevChats.map(chat => {
               if (chat.id === data.chatId) {
+                console.log('✏️ messageSent - Chat güncelleniyor:', chat.name);
                 return {
                   ...chat,
                   lastMessage: data.message.text || 'Resim',
