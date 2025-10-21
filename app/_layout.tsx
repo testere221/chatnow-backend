@@ -55,7 +55,7 @@ export default function RootLayout() {
           NotificationService.cleanup();
         };
       } catch (error) {
-        console.error('❌ Error initializing notifications:', error);
+        // Notification initialization error - silent
       }
     };
 
