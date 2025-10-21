@@ -369,14 +369,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Mesaj gönderildikten sonra chat listesini güncelle
       const chatId = [currentUser.id, receiverId].sort().join('_');
-      
-      console.log('📤 sendMessage çağrıldı:', { receiverId, chatId });
 
       setChats(prevChats => {
         const existingChat = prevChats.find(chat => chat.id === chatId);
         
         if (existingChat) {
-          console.log('✅ Mevcut chat güncelleniyor:', chatId);
           // Update existing chat and move to top
           const updatedChats = prevChats.map(chat =>
             chat.id === chatId
@@ -393,7 +390,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
         
         // Yeni chat oluşturulacak, prevChats'i değiştirme
-        console.log('🆕 Yeni chat oluşturulacak:', chatId);
         return prevChats;
       });
 
@@ -1051,16 +1047,10 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           processedEventsRef.current.set(eventKey, now);
           
-          console.log('📨 messageSent event işleniyor:', { messageId: data.messageId, chatId: data.chatId, text: data.message.text });
-          
           // Kendi mesajlarımız için chat listesini güncelle ve en üste taşı (count değişmez)
           setChats(prevChats => {
-            const matchedChat = prevChats.find(chat => chat.id === data.chatId);
-            console.log('🔍 messageSent - Chat bulundu mu?', matchedChat ? `EVET: ${matchedChat.name}` : 'HAYIR');
-            
             const updatedChats = prevChats.map(chat => {
               if (chat.id === data.chatId) {
-                console.log('✏️ messageSent - Chat güncelleniyor:', chat.name);
                 return {
                   ...chat,
                   lastMessage: data.message.text || 'Resim',
