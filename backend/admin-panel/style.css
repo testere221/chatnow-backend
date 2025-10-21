@@ -527,3 +527,52 @@ tbody tr:hover {
     background: #c82333;
 }
 
+/* Page jump input */
+.page-jump-input {
+    width: 60px;
+    padding: 6px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 14px;
+}
+
+.page-jump-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Checkbox styles */
+.select-all-checkbox, .user-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.select-all-checkbox {
+    margin: 0;
+}
+
+.user-checkbox {
+    margin: 0;
+}
+
+/* Sortable header styles */
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.sortable-header:hover {
+    background-color: #f3f4f6;
+}
+
+.sort-arrow {
+    margin-left: 5px;
+    font-size: 12px;
+    color: #6b7280;
+    transition: color 0.2s;
+}
+

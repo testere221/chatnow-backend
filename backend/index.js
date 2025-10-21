@@ -2796,7 +2796,7 @@ app.get('/api/token-packages', async (req, res) => {
 // Get all users
 app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
   try {
-    const { search, page = 1, limit = 20, user_type } = req.query;
+    const { search, page = 1, limit = 20, user_type, sort_by, sort_order = 'desc' } = req.query;
     const skip = (page - 1) * limit;
 
     let query = {};
@@ -2814,9 +2814,34 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
       query.user_type = user_type;
     }
 
+    // Sorting
+    let sort = { created_at: -1 }; // Default sort by creation date
+    if (sort_by) {
+      const order = sort_order === 'asc' ? 1 : -1;
+      switch (sort_by) {
+        case 'name':
+          sort = { name: order };
+          break;
+        case 'email':
+          sort = { email: order };
+          break;
+        case 'diamonds':
+          sort = { diamonds: order };
+          break;
+        case 'is_online':
+          sort = { is_online: order };
+          break;
+        case 'created_at':
+          sort = { created_at: order };
+          break;
+        default:
+          sort = { created_at: -1 };
+      }
+    }
+
     const users = await User.find(query)
       .select('-password')
-      .sort({ created_at: -1 })
+      .sort(sort)
       .skip(skip)
       .limit(parseInt(limit));
 
@@ -2975,7 +3000,8 @@ app.post('/api/admin/support-bots', authenticateAdmin, async (req, res) => {
       about: about || 'Müşteri destek botu',
       diamonds: 999999,
       avatar: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name),
-      is_online: true
+      is_online: true,
+      user_type: 'manual' // Admin tarafından eklenen
     });
 
     await bot.save();

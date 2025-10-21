@@ -32,6 +32,7 @@
                     <option value="manual">Manuel Eklenen</option>
                 </select>
                 <button class="btn btn-success" id="addBotBtn">+ Destek Botu Ekle</button>
+                <button class="btn btn-danger" id="bulkDeleteBtn" style="display: none;">Seçilenleri Sil</button>
             </div>
             
             <div class="bot-section">
@@ -42,12 +43,13 @@
             <table>
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox"></th>
                         <th>Avatar</th>
-                        <th>İsim</th>
-                        <th>Email</th>
-                        <th>Jeton</th>
-                        <th>Durum</th>
-                        <th>Kayıt Tarihi</th>
+                        <th class="sortable-header" data-sort="name">İsim <span class="sort-arrow">↕</span></th>
+                        <th class="sortable-header" data-sort="email">Email <span class="sort-arrow">↕</span></th>
+                        <th class="sortable-header" data-sort="diamonds">Jeton <span class="sort-arrow">↕</span></th>
+                        <th class="sortable-header" data-sort="is_online">Durum <span class="sort-arrow">↕</span></th>
+                        <th class="sortable-header" data-sort="created_at">Kayıt Tarihi <span class="sort-arrow">↕</span></th>
                         <th>İşlemler</th>
                     </tr>
                 </thead>
@@ -63,6 +65,8 @@
                 </div>
                 <div class="pagination-buttons">
                     <button id="prevPageBtn" class="btn btn-secondary" disabled>← Önceki</button>
+                    <input type="number" id="pageJumpInput" class="page-jump-input" placeholder="Sayfa" min="1" max="1">
+                    <button id="jumpToPageBtn" class="btn btn-primary">Git</button>
                     <button id="nextPageBtn" class="btn btn-secondary" disabled>Sonraki →</button>
                 </div>
             </div>
@@ -159,6 +163,8 @@
         let totalPages = 1;
         let currentSearch = '';
         let currentUserType = '';
+        let currentSortBy = '';
+        let currentSortOrder = 'desc';
 
         if (!authToken) {
             window.location.href = '/admin';
@@ -167,7 +173,7 @@
         document.getElementById('adminUsername').textContent = localStorage.getItem('adminUsername') || 'Admin';
 
         // Load users with pagination
-        async function loadUsers(search = '', page = 1, userType = '') {
+        async function loadUsers(search = '', page = 1, userType = '', sortBy = '', sortOrder = 'desc') {
             try {
                 let url = `${API_URL}/api/admin/users?page=${page}&limit=20`;
                 if (search) {
@@ -182,6 +188,12 @@
                     currentUserType = userType;
                 } else {
                     currentUserType = '';
+                }
+                
+                if (sortBy) {
+                    url += `&sort_by=${sortBy}&sort_order=${sortOrder}`;
+                    currentSortBy = sortBy;
+                    currentSortOrder = sortOrder;
                 }
 
                 const response = await fetch(url, {
@@ -199,10 +211,11 @@
                 const data = await response.json();
                 renderUsers(data.users);
                 updatePagination(data.pagination);
+                updateSortArrows();
             } catch (error) {
                 console.error(error);
                 document.getElementById('usersBody').innerHTML = `
-                    <tr><td colspan="7" class="empty-state">Hata: ${error.message}</td></tr>
+                    <tr><td colspan="8" class="empty-state">Hata: ${error.message}</td></tr>
                 `;
             }
         }
@@ -216,6 +229,7 @@
             const paginationInfo = document.getElementById('paginationInfo');
             const prevBtn = document.getElementById('prevPageBtn');
             const nextBtn = document.getElementById('nextPageBtn');
+            const pageJumpInput = document.getElementById('pageJumpInput');
             
             if (totalPages > 1) {
                 paginationControls.style.display = 'flex';
@@ -223,6 +237,10 @@
                 
                 prevBtn.disabled = currentPage <= 1;
                 nextBtn.disabled = currentPage >= totalPages;
+                
+                // Update page jump input
+                pageJumpInput.max = totalPages;
+                pageJumpInput.value = currentPage;
             } else {
                 paginationControls.style.display = 'none';
             }
@@ -343,6 +361,9 @@
             tbody.innerHTML = users.map(user => `
                 <tr>
                     <td>
+                        <input type="checkbox" class="user-checkbox" data-id="${user._id}" data-name="${user.name}">
+                    </td>
+                    <td>
                         ${user.avatar_image ? 
                             `<img src="${user.avatar_image.startsWith('data:') ? 
                                 user.avatar_image : 
@@ -403,6 +424,25 @@
         // User type filter event
         document.getElementById('userTypeFilter').addEventListener('change', (e) => {
             loadUsers(currentSearch, 1, e.target.value); // Reset to page 1 when filtering
+        });
+
+        // Page jump functionality
+        document.getElementById('jumpToPageBtn').addEventListener('click', () => {
+            const pageInput = document.getElementById('pageJumpInput');
+            const targetPage = parseInt(pageInput.value);
+            
+            if (targetPage >= 1 && targetPage <= totalPages) {
+                loadUsers(currentSearch, targetPage, currentUserType);
+            } else {
+                alert(`Geçersiz sayfa numarası! 1-${totalPages} arasında bir sayı girin.`);
+            }
+        });
+
+        // Page jump input enter key
+        document.getElementById('pageJumpInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('jumpToPageBtn').click();
+            }
         });
 
         // Bot Modal
@@ -629,6 +669,122 @@
                         alert('Kullanıcı silinirken hata oluştu');
                     }
                 }
+            }
+        });
+
+        // Bulk operations
+        document.getElementById('selectAllCheckbox').addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = e.target.checked;
+            });
+            updateBulkDeleteButton();
+        });
+
+        // Individual checkbox change
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('user-checkbox')) {
+                updateBulkDeleteButton();
+                updateSelectAllCheckbox();
+            }
+        });
+
+        // Update bulk delete button visibility
+        function updateBulkDeleteButton() {
+            const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+            const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+            
+            if (checkedBoxes.length > 0) {
+                bulkDeleteBtn.style.display = 'inline-block';
+                bulkDeleteBtn.textContent = `Seçilenleri Sil (${checkedBoxes.length})`;
+            } else {
+                bulkDeleteBtn.style.display = 'none';
+            }
+        }
+
+        // Update select all checkbox
+        function updateSelectAllCheckbox() {
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            
+            if (checkedBoxes.length === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (checkedBoxes.length === checkboxes.length) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+
+        // Bulk delete functionality
+        document.getElementById('bulkDeleteBtn').addEventListener('click', async () => {
+            const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+            const userIds = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-id'));
+            const userNames = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-name'));
+            
+            if (confirm(`${userNames.length} kullanıcıyı silmek istediğinizden emin misiniz?\n\nSeçilen kullanıcılar: ${userNames.join(', ')}\n\nBu işlem geri alınamaz!`)) {
+                try {
+                    let successCount = 0;
+                    let errorCount = 0;
+                    
+                    for (const userId of userIds) {
+                        try {
+                            const response = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${authToken}` }
+                            });
+                            
+                            if (response.ok) {
+                                successCount++;
+                            } else {
+                                errorCount++;
+                            }
+                        } catch (error) {
+                            errorCount++;
+                        }
+                    }
+                    
+                    alert(`Toplu silme tamamlandı!\nBaşarılı: ${successCount}\nHatalı: ${errorCount}`);
+                    loadUsers(currentSearch, currentPage, currentUserType); // Reload current page
+                } catch (error) {
+                    console.error('Bulk delete error:', error);
+                    alert('Toplu silme işleminde hata oluştu');
+                }
+            }
+        });
+
+        // Update sort arrows
+        function updateSortArrows() {
+            const headers = document.querySelectorAll('.sortable-header');
+            headers.forEach(header => {
+                const arrow = header.querySelector('.sort-arrow');
+                const sortBy = header.getAttribute('data-sort');
+                
+                if (sortBy === currentSortBy) {
+                    arrow.textContent = currentSortOrder === 'asc' ? '↑' : '↓';
+                    arrow.style.color = '#3b82f6';
+                } else {
+                    arrow.textContent = '↕';
+                    arrow.style.color = '#6b7280';
+                }
+            });
+        }
+
+        // Sort functionality
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.sortable-header')) {
+                const header = e.target.closest('.sortable-header');
+                const sortBy = header.getAttribute('data-sort');
+                let newSortOrder = 'asc';
+                
+                if (sortBy === currentSortBy) {
+                    newSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+                }
+                
+                loadUsers(currentSearch, 1, currentUserType, sortBy, newSortOrder);
             }
         });
 
