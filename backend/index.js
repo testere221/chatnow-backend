@@ -10,6 +10,7 @@ const compression = require('compression');
 const helmet = require('helmet');
 const multer = require('multer');
 const path = require('path');
+const { google } = require('googleapis');
 
 // Models
 const User = require('./models/User');
@@ -2152,24 +2153,90 @@ app.post('/api/notifications/send', authenticateToken, async (req, res) => {
 });
 
 // Google Play Billing - verify purchase and credit diamonds
+// Google Play Developer API Setup
+let androidPublisher = null;
+if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+  try {
+    const serviceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+    const auth = new google.auth.GoogleAuth({
+      credentials: serviceAccountKey,
+      scopes: ['https://www.googleapis.com/auth/androidpublisher'],
+    });
+    androidPublisher = google.androidpublisher({ version: 'v3', auth });
+    console.log('✅ Google Play Developer API initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize Google Play API:', error.message);
+  }
+} else {
+  console.warn('⚠️  GOOGLE_SERVICE_ACCOUNT_KEY not set - billing verification will be simulated');
+}
+
 app.post('/api/billing/verify', authenticateToken, async (req, res) => {
   try {
     const { productId, purchaseToken, orderId, packageName } = req.body || {};
     const userId = req.user.userId;
 
+    console.log('💳 Purchase verify request:', { userId, productId, orderId, packageName: packageName || 'com.ferhatkortak2.florty' });
+
     if (!productId || !purchaseToken) {
-      return res.status(400).json({ message: 'Eksik parametre' });
+      return res.status(400).json({ message: 'Eksik parametre: productId ve purchaseToken gerekli' });
     }
 
     // 1) Find token package by product_id
     const pkg = await TokenPackage.findOne({ product_id: productId, is_active: true });
     if (!pkg) {
-      return res.status(404).json({ message: 'Ürün bulunamadı' });
+      console.error('❌ Product not found:', productId);
+      return res.status(404).json({ message: 'Ürün bulunamadı: ' + productId });
     }
 
-    // 2) OPTIONAL: Validate with Google Play Developer API
-    // For now, we trust and log. You can integrate Google API later.
-    console.log('💳 Purchase verify request', { userId, productId, orderId, packageName });
+    // 2) Verify with Google Play Developer API
+    if (androidPublisher) {
+      try {
+        const pkgName = packageName || 'com.ferhatkortak2.florty';
+        console.log('🔍 Verifying purchase with Google Play API...', { packageName: pkgName, productId, purchaseToken: purchaseToken.substring(0, 20) + '...' });
+        
+        const response = await androidPublisher.purchases.products.get({
+          packageName: pkgName,
+          productId: productId,
+          token: purchaseToken,
+        });
+
+        const purchaseState = response.data.purchaseState;
+        const consumptionState = response.data.consumptionState;
+
+        console.log('✅ Google Play API response:', { purchaseState, consumptionState, orderId: response.data.orderId });
+
+        // purchaseState: 0 = purchased, 1 = canceled
+        if (purchaseState !== 0) {
+          console.error('❌ Purchase not valid - state:', purchaseState);
+          return res.status(400).json({ message: 'Satın alma geçersiz' });
+        }
+
+        // consumptionState: 0 = not consumed, 1 = consumed
+        if (consumptionState === 1) {
+          console.error('❌ Purchase already consumed');
+          return res.status(400).json({ message: 'Bu satın alma zaten kullanılmış' });
+        }
+
+        // Acknowledge/consume the purchase
+        try {
+          await androidPublisher.purchases.products.acknowledge({
+            packageName: pkgName,
+            productId: productId,
+            token: purchaseToken,
+          });
+          console.log('✅ Purchase acknowledged');
+        } catch (ackError) {
+          console.warn('⚠️  Acknowledge failed (might be already acknowledged):', ackError.message);
+        }
+      } catch (apiError) {
+        console.error('❌ Google Play API verification failed:', apiError.message);
+        // Continue anyway for testing - remove this in production!
+        console.warn('⚠️  Continuing despite API error for testing...');
+      }
+    } else {
+      console.warn('⚠️  Google Play API not configured - skipping verification (TEST MODE)');
+    }
 
     // 3) Credit diamonds atomically
     const updatedUser = await User.findByIdAndUpdate(
@@ -2179,8 +2246,11 @@ app.post('/api/billing/verify', authenticateToken, async (req, res) => {
     );
 
     if (!updatedUser) {
+      console.error('❌ User not found:', userId);
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
+
+    console.log('✅ Diamonds credited:', { userId, amount: pkg.token_amount, newTotal: updatedUser.diamonds });
 
     // 4) Return credited info
     return res.json({
@@ -2189,7 +2259,7 @@ app.post('/api/billing/verify', authenticateToken, async (req, res) => {
       diamonds: updatedUser.diamonds,
     });
   } catch (error) {
-    console.error('Billing verify error:', error);
+    console.error('❌ Billing verify error:', error);
     return res.status(500).json({ message: 'Doğrulama hatası', error: error.message });
   }
 });
