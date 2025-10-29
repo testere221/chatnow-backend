@@ -2151,6 +2151,49 @@ app.post('/api/notifications/send', authenticateToken, async (req, res) => {
   }
 });
 
+// Google Play Billing - verify purchase and credit diamonds
+app.post('/api/billing/verify', authenticateToken, async (req, res) => {
+  try {
+    const { productId, purchaseToken, orderId, packageName } = req.body || {};
+    const userId = req.user.userId;
+
+    if (!productId || !purchaseToken) {
+      return res.status(400).json({ message: 'Eksik parametre' });
+    }
+
+    // 1) Find token package by product_id
+    const pkg = await TokenPackage.findOne({ product_id: productId, is_active: true });
+    if (!pkg) {
+      return res.status(404).json({ message: 'Ürün bulunamadı' });
+    }
+
+    // 2) OPTIONAL: Validate with Google Play Developer API
+    // For now, we trust and log. You can integrate Google API later.
+    console.log('💳 Purchase verify request', { userId, productId, orderId, packageName });
+
+    // 3) Credit diamonds atomically
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { diamonds: pkg.token_amount }, last_active: new Date() },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    }
+
+    // 4) Return credited info
+    return res.json({
+      success: true,
+      diamondsCredited: pkg.token_amount,
+      diamonds: updatedUser.diamonds,
+    });
+  } catch (error) {
+    console.error('Billing verify error:', error);
+    return res.status(500).json({ message: 'Doğrulama hatası', error: error.message });
+  }
+});
+
 // Şifre sıfırlama token'ı oluştur
 app.post('/api/auth/forgot-password', async (req, res) => {
   try {
