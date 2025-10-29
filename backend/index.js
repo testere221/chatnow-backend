@@ -3301,6 +3301,76 @@ app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Admin endpoint: Seed token packages (call once to initialize)
+app.post('/api/admin/seed-token-packages', async (req, res) => {
+  try {
+    // Check if packages already exist
+    const existingCount = await TokenPackage.countDocuments();
+    if (existingCount > 0) {
+      return res.json({ 
+        message: 'Token packages already exist', 
+        count: existingCount 
+      });
+    }
+
+    // Create token packages matching Play Console in-app products
+    const packages = [
+      {
+        product_id: 'token_pack_1',
+        token_amount: 3000,
+        price_try: 129.99,
+        price_usd: 4.99,
+        display_order: 1,
+        is_active: true
+      },
+      {
+        product_id: 'token_pack_2',
+        token_amount: 6000,
+        price_try: 239.99,
+        price_usd: 9.99,
+        display_order: 2,
+        is_active: true
+      },
+      {
+        product_id: 'token_pack_3',
+        token_amount: 15000,
+        price_try: 494.50,
+        price_usd: 19.99,
+        display_order: 3,
+        is_active: true
+      },
+      {
+        product_id: 'token_pack_4',
+        token_amount: 20000,
+        price_try: 570.25,
+        price_usd: 29.99,
+        display_order: 4,
+        is_active: true
+      },
+      {
+        product_id: 'token_pack_5',
+        token_amount: 30000,
+        price_try: 819.99,
+        price_usd: 49.99,
+        display_order: 5,
+        is_active: true
+      }
+    ];
+
+    await TokenPackage.insertMany(packages);
+    
+    console.log('✅ Token packages seeded successfully');
+    res.json({ 
+      message: 'Token packages created successfully', 
+      count: packages.length,
+      packages 
+    });
+  } catch (error) {
+    console.error('❌ Seed token packages error:', error);
+    res.status(500).json({ error: 'Failed to seed token packages', message: error.message });
+  }
+});
+
 // Server başlat
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server çalışıyor: http://localhost:${PORT}`);
