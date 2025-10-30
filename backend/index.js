@@ -2989,7 +2989,6 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
     }
 
     const users = await User.find(query)
-      .select('-password')
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit));
