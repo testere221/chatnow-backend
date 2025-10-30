@@ -389,7 +389,10 @@
             <div class="packages-section">
                 <div class="packages-header">
                     <h3>Jeton Paketleri</h3>
-                    <button class="btn btn-success" id="addPackageBtn">+ Yeni Paket Ekle</button>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-success" id="addPackageBtn">+ Yeni Paket Ekle</button>
+                        <button class="btn btn-success" id="runProfileBotBtn">🤖 Profil Botu</button>
+                    </div>
                 </div>
 
                 <table id="packagesTable">
@@ -412,6 +415,25 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Bot Modal -->
+    <div id="profileBotModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🤖 Toplu Profil Güncelleme Botu</h3>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:10px; color:#555;">Bilgisayarından birden fazla profil resmini seç. Dosya adları kullanıcıyla eşleşecek şekilde olmalı: <code>userId.jpg</code>, <code>email.jpg</code> veya <code>Ad_Soyad.jpg</code>.</p>
+                <input type="file" id="profileFilesInput" accept="image/*" multiple />
+                <div id="botStatus" style="margin-top:12px; font-size:14px; color:#374151;"></div>
+                <div id="botLog" style="margin-top:8px; max-height:220px; overflow:auto; background:#f9fafb; border:1px solid #e5e7eb; padding:8px; border-radius:8px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:12px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="closeProfileBotBtn">Kapat</button>
+                <button type="button" class="btn btn-success" id="startProfileBotBtn">Başlat</button>
             </div>
         </div>
     </div>
@@ -686,6 +708,16 @@
         document.getElementById('logoutBtn').addEventListener('click', logout);
         document.getElementById('addPackageBtn').addEventListener('click', showAddModal);
         document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        document.getElementById('runProfileBotBtn').addEventListener('click', () => {
+            document.getElementById('profileBotModal').style.display = 'flex';
+            document.getElementById('botStatus').textContent = '';
+            document.getElementById('botLog').textContent = '';
+            const f = document.getElementById('profileFilesInput');
+            if (f) f.value = '';
+        });
+        document.getElementById('closeProfileBotBtn').addEventListener('click', () => {
+            document.getElementById('profileBotModal').style.display = 'none';
+        });
 
         // Event delegation for dynamically created buttons
         document.getElementById('packagesBody').addEventListener('click', (e) => {
@@ -697,6 +729,108 @@
                 deletePackage(packageId);
             }
         });
+
+        // ---------- PROFILE BOT ----------
+        function botLog(line){
+            const el = document.getElementById('botLog');
+            el.textContent += `${line}\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function candidateNames(u){
+            const list = [];
+            const id = (u.id || u._id || '').toString();
+            if (id) list.push(`${id}.jpg`, `${id}.jpeg`, `${id}.png`, `${id}.webp`);
+            if (u.email) list.push(`${u.email}.jpg`, `${u.email}.jpeg`, `${u.email}.png`, `${u.email}.webp`);
+            const nm = [u.name, u.surname].filter(Boolean).join('_');
+            if (nm) list.push(`${nm}.jpg`, `${nm}.jpeg`, `${nm}.png`, `${nm}.webp`);
+            return Array.from(new Set(list));
+        }
+
+        async function fetchAllUsers(){
+            const res = await fetch(`${API_URL}/api/users`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+            if (!res.ok) throw new Error('Kullanıcılar alınamadı');
+            return await res.json();
+        }
+
+        async function uploadImage(file){
+            const form = new FormData();
+            form.append('image', file, file.name);
+            const res = await fetch(`${API_URL}/api/upload/image`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${authToken}` },
+                body: form
+            });
+            const data = await res.json();
+            if (!res.ok || !data.url) throw new Error(data.message || 'Yükleme hatası');
+            return data.url;
+        }
+
+        async function updateUserProfile(userId, fields){
+            let res = await fetch(`${API_URL}/api/users/update`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, ...fields })
+            });
+            if (res.ok) return true;
+            res = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(fields)
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(()=>({}));
+                throw new Error(data.error || 'Profil güncellenemedi');
+            }
+            return true;
+        }
+
+        async function startProfileBot(){
+            const filesInput = document.getElementById('profileFilesInput');
+            const files = Array.from(filesInput.files || []);
+            if (files.length === 0){
+                alert('Lütfen en az bir resim seç.');
+                return;
+            }
+            document.getElementById('botStatus').textContent = 'Hazırlanıyor...';
+            botLog('Kullanıcılar çekiliyor...');
+            let users = [];
+            try {
+                users = await fetchAllUsers();
+            } catch(e){
+                botLog('❌ ' + e.message);
+                document.getElementById('botStatus').textContent = 'Hata';
+                return;
+            }
+            botLog(`Toplam kullanıcı: ${users.length}`);
+
+            const fileMap = new Map();
+            files.forEach(f => fileMap.set(f.name, f));
+
+            let ok=0, skip=0, fail=0, i=0;
+            for (const u of users){
+                i++;
+                const names = candidateNames(u);
+                const fname = names.find(n => fileMap.has(n));
+                if (!fname){ skip++; continue; }
+                const file = fileMap.get(fname);
+                try {
+                    document.getElementById('botStatus').textContent = `Yükleniyor (${i}/${users.length}): ${u.email || u.id}`;
+                    const url = await uploadImage(file);
+                    await updateUserProfile(u.id || u._id, { avatar: url });
+                    botLog(`✅ ${u.email || u.id} -> ${fname}`);
+                    ok++;
+                    await new Promise(r=>setTimeout(r,300));
+                } catch(e){
+                    botLog(`❌ ${u.email || u.id} -> ${e.message}`);
+                    fail++;
+                }
+            }
+            document.getElementById('botStatus').textContent = `Bitti. Başarılı: ${ok}, Atlanan: ${skip}, Hata: ${fail}`;
+        }
+
+        document.getElementById('startProfileBotBtn').addEventListener('click', startProfileBot);
+
     </script>
 </body>
 </html>
