@@ -159,6 +159,10 @@ app.get('/admin/messages.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-panel', 'messages-full.html'));
 });
 
+app.get('/admin/reports.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin-panel', 'reports.html'));
+});
+
 app.get('/admin/style.css', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-panel', 'style.css'));
 });
