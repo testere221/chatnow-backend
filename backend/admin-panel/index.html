@@ -767,13 +767,8 @@
         }
 
         async function updateUserProfile(userId, fields){
-            let res = await fetch(`${API_URL}/api/users/update`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, ...fields })
-            });
-            if (res.ok) return true;
-            res = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+            // Sadece admin endpoint'i kullan: hedef kullanıcıyı doğru günceller ve profileUpdated yayar
+            const res = await fetch(`${API_URL}/api/admin/users/${userId}`, {
                 method: 'PUT',
                 headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(fields)
@@ -817,7 +812,7 @@
                 try {
                     document.getElementById('botStatus').textContent = `Yükleniyor (${i}/${users.length}): ${u.email || u.id}`;
                     const url = await uploadImage(file);
-                    await updateUserProfile(u.id || u._id, { avatar: url });
+                    await updateUserProfile(u.id || u._id, { avatar: url, avatar_image: url });
                     botLog(`✅ ${u.email || u.id} -> ${fname}`);
                     ok++;
                     await new Promise(r=>setTimeout(r,300));
