@@ -19,6 +19,7 @@ const Chat = require('./models/Chat');
 const Block = require('./models/Block');
 const Admin = require('./models/Admin');
 const TokenPackage = require('./models/TokenPackage');
+const Report = require('./models/Report');
 
 // Services
 const { sendEmail } = require('./services/emailService');
@@ -2903,6 +2904,37 @@ app.get('/api/token-packages', async (req, res) => {
 });
 
 // ==========================================
+// REPORTS API
+// ==========================================
+
+// Create report
+app.post('/api/reports', authenticateToken, async (req, res) => {
+  try {
+    const reporterId = req.user.userId;
+    const { reportedUserId, reportedUserName, reason, chatId } = req.body;
+
+    if (!reportedUserId || !reportedUserName || !reason) {
+      return res.status(400).json({ error: 'Eksik bilgi' });
+    }
+
+    const report = new Report({
+      reporter_id: reporterId,
+      reported_user_id: reportedUserId,
+      reported_user_name: reportedUserName,
+      reason,
+      chat_id: chatId,
+      status: 'pending'
+    });
+
+    await report.save();
+    res.json({ success: true, report });
+  } catch (error) {
+    console.error('Create report error:', error);
+    res.status(500).json({ error: 'Şikayet oluşturulurken hata oluştu' });
+  }
+});
+
+// ==========================================
 // ADMIN USER MANAGEMENT
 // ==========================================
 
@@ -3031,6 +3063,65 @@ app.delete('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ error: 'Kullanıcı silinirken hata oluştu' });
+  }
+});
+
+// Get all reports
+app.get('/api/admin/reports', authenticateAdmin, async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    let query = {};
+    if (status) {
+      query.status = status;
+    }
+
+    const reports = await Report.find(query)
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Report.countDocuments(query);
+
+    res.json({
+      reports,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get reports error:', error);
+    res.status(500).json({ error: 'Şikayetler yüklenirken hata oluştu' });
+  }
+});
+
+// Update report status
+app.put('/api/admin/reports/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { status, review_notes } = req.body;
+    const adminId = req.user.userId;
+
+    const report = await Report.findById(req.params.id);
+    if (!report) {
+      return res.status(404).json({ error: 'Şikayet bulunamadı' });
+    }
+
+    report.status = status || report.status;
+    report.reviewed_by = adminId;
+    report.reviewed_at = new Date();
+    if (review_notes) {
+      report.review_notes = review_notes;
+    }
+
+    await report.save();
+    res.json({ success: true, report });
+  } catch (error) {
+    console.error('Update report error:', error);
+    res.status(500).json({ error: 'Şikayet güncellenirken hata oluştu' });
   }
 });
 

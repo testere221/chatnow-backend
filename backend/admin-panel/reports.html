@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Şikayetler - Admin Panel</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚠️</text></svg>">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-pending { background: #FEF3C7; color: #92400E; }
+        .status-reviewed { background: #DBEAFE; color: #1E40AF; }
+        .status-resolved { background: #D1FAE5; color: #065F46; }
+        .status-dismissed { background: #F3F4F6; color: #374151; }
+        .reason-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>⚠️ Şikayetler</h2>
+            <div class="user-info">
+                <span id="adminUsername"></span>
+                <button class="btn btn-logout" id="logoutBtn">Çıkış</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="nav-tabs">
+                <a href="/admin" class="tab">💎 Paketler</a>
+                <a href="/admin/users.html" class="tab">👥 Kullanıcılar</a>
+                <a href="/admin/messages.html" class="tab">💬 Mesajlar</a>
+                <a href="/admin/reports.html" class="tab active">⚠️ Şikayetler</a>
+            </div>
+
+            <div class="search-bar">
+                <select id="statusFilter" class="user-type-filter">
+                    <option value="">Tüm Şikayetler</option>
+                    <option value="pending">Beklemede</option>
+                    <option value="reviewed">İncelendi</option>
+                    <option value="resolved">Çözüldü</option>
+                    <option value="dismissed">Reddedildi</option>
+                </select>
+                <button class="btn btn-primary" id="refreshBtn">🔄 Yenile</button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Şikayet Eden</th>
+                        <th>Şikayet Edilen</th>
+                        <th class="reason-cell">Sebep</th>
+                        <th>Durum</th>
+                        <th>Tarih</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="reportsBody">
+                    <tr><td colspan="6" class="empty-state">Yükleniyor...</td></tr>
+                </tbody>
+            </table>
+            
+            <div id="paginationControls" class="pagination-controls" style="display: none;">
+                <div class="pagination-info">
+                    <span id="paginationInfo">Sayfa 1 / 1</span>
+                </div>
+                <div class="pagination-buttons">
+                    <button id="prevPageBtn" class="btn btn-secondary" disabled>← Önceki</button>
+                    <input type="number" id="pageJumpInput" class="page-jump-input" placeholder="Sayfa" min="1" max="1">
+                    <button id="jumpToPageBtn" class="btn btn-primary">Git</button>
+                    <button id="nextPageBtn" class="btn btn-secondary" disabled>Sonraki →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Modal -->
+    <div id="reviewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Şikayeti İncele</h3>
+            </div>
+            <div class="modal-body">
+                <div id="reportDetails"></div>
+                <div class="input-group">
+                    <label>Durum</label>
+                    <select id="reviewStatus" class="user-type-filter">
+                        <option value="pending">Beklemede</option>
+                        <option value="reviewed">İncelendi</option>
+                        <option value="resolved">Çözüldü</option>
+                        <option value="dismissed">Reddedildi</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Notlar</label>
+                    <textarea id="reviewNotes" rows="4" placeholder="İnceleme notlarınızı buraya yazın..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="closeReviewBtn">İptal</button>
+                <button type="button" class="btn btn-success" id="saveReviewBtn">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://observant-wisdom-production-ee9f.up.railway.app';
+        let currentReportId = null;
+        let currentPage = 1;
+
+        // Auth check
+        window.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                window.location.href = '/admin';
+            }
+            
+            const username = localStorage.getItem('adminUsername');
+            if (username) {
+                document.getElementById('adminUsername').textContent = username;
+            }
+
+            await loadReports();
+            
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                localStorage.removeItem('adminToken');
+                window.location.href = '/admin';
+            });
+
+            document.getElementById('refreshBtn').addEventListener('click', loadReports);
+            document.getElementById('statusFilter').addEventListener('change', () => {
+                currentPage = 1;
+                loadReports();
+            });
+
+            document.getElementById('closeReviewBtn').addEventListener('click', () => {
+                document.getElementById('reviewModal').style.display = 'none';
+            });
+
+            document.getElementById('saveReviewBtn').addEventListener('click', saveReview);
+            
+            setupPagination();
+        });
+
+        async function loadReports() {
+            const token = localStorage.getItem('adminToken');
+            const status = document.getElementById('statusFilter').value;
+            const limit = 20;
+            const skip = (currentPage - 1) * limit;
+
+            try {
+                let url = `${API_BASE}/api/admin/reports?page=${currentPage}&limit=${limit}`;
+                if (status) url += `&status=${status}`;
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Şikayetler yüklenemedi');
+                const data = await response.json();
+
+                displayReports(data.reports);
+                updatePagination(data.pagination);
+            } catch (error) {
+                console.error('Load reports error:', error);
+                document.getElementById('reportsBody').innerHTML = 
+                    '<tr><td colspan="6" class="empty-state">Şikayetler yüklenirken hata oluştu</td></tr>';
+            }
+        }
+
+        function displayReports(reports) {
+            const tbody = document.getElementById('reportsBody');
+            
+            if (reports.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Şikayet bulunamadı</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = reports.map(report => {
+                const date = new Date(report.created_at).toLocaleString('tr-TR');
+                const statusClass = `status-${report.status}`;
+                const statusText = {
+                    'pending': 'Beklemede',
+                    'reviewed': 'İncelendi',
+                    'resolved': 'Çözüldü',
+                    'dismissed': 'Reddedildi'
+                }[report.status] || report.status;
+
+                return `
+                    <tr>
+                        <td>${report.reporter_id.substring(0, 8)}...</td>
+                        <td>${report.reported_user_name}</td>
+                        <td class="reason-cell" title="${report.reason}">${report.reason}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${date}</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-primary btn-small" onclick='openReviewModal("${report._id}")'>İncele</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function openReviewModal(reportId) {
+            currentReportId = reportId;
+            
+            try {
+                const token = localStorage.getItem('adminToken');
+                const response = await fetch(`${API_BASE}/api/admin/reports`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Şikayet detayları yüklenemedi');
+                const data = await response.json();
+                
+                const report = data.reports.find(r => r._id === reportId);
+                if (!report) return;
+
+                document.getElementById('reportDetails').innerHTML = `
+                    <div style="margin-bottom: 15px;">
+                        <strong>Şikayet Eden:</strong> ${report.reporter_id.substring(0, 8)}...<br>
+                        <strong>Şikayet Edilen:</strong> ${report.reported_user_name}<br>
+                        <strong>Tarih:</strong> ${new Date(report.created_at).toLocaleString('tr-TR')}<br>
+                        ${report.chat_id ? `<strong>Sohbet ID:</strong> ${report.chat_id}<br>` : ''}
+                    </div>
+                    <div style="background: #f3f4f6; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                        <strong>Sebep:</strong><br>
+                        ${report.reason}
+                    </div>
+                `;
+
+                document.getElementById('reviewStatus').value = report.status;
+                document.getElementById('reviewNotes').value = report.review_notes || '';
+                
+                document.getElementById('reviewModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Load review error:', error);
+                alert('Şikayet detayları yüklenirken hata oluştu');
+            }
+        }
+
+        async function saveReview() {
+            if (!currentReportId) return;
+
+            const status = document.getElementById('reviewStatus').value;
+            const notes = document.getElementById('reviewNotes').value;
+
+            try {
+                const token = localStorage.getItem('adminToken');
+                const response = await fetch(`${API_BASE}/api/admin/reports/${currentReportId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ status, review_notes: notes })
+                });
+
+                if (!response.ok) throw new Error('Şikayet güncellenemedi');
+                
+                document.getElementById('reviewModal').style.display = 'none';
+                await loadReports();
+                alert('Şikayet güncellendi');
+            } catch (error) {
+                console.error('Save review error:', error);
+                alert('Şikayet güncellenirken hata oluştu');
+            }
+        }
+
+        function setupPagination() {
+            document.getElementById('prevPageBtn').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadReports();
+                }
+            });
+
+            document.getElementById('nextPageBtn').addEventListener('click', () => {
+                currentPage++;
+                loadReports();
+            });
+
+            document.getElementById('jumpToPageBtn').addEventListener('click', () => {
+                const page = parseInt(document.getElementById('pageJumpInput').value);
+                if (page && page >= 1) {
+                    currentPage = page;
+                    loadReports();
+                }
+            });
+        }
+
+        function updatePagination(pagination) {
+            const controls = document.getElementById('paginationControls');
+            if (pagination.pages <= 1) {
+                controls.style.display = 'none';
+                return;
+            }
+
+            controls.style.display = 'flex';
+            document.getElementById('paginationInfo').textContent = 
+                `Sayfa ${pagination.page} / ${pagination.pages} (Toplam: ${pagination.total})`;
+            
+            document.getElementById('prevPageBtn').disabled = pagination.page <= 1;
+            document.getElementById('nextPageBtn').disabled = pagination.page >= pagination.pages;
+            document.getElementById('pageJumpInput').max = pagination.pages;
+        }
+    </script>
+</body>
+</html>
+
