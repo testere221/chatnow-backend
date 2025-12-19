@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatNow Admin Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 4px 0;
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .stat-card .card-body {
+            padding: 1.5rem;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .table th {
+            background-color: #f8f9fa;
+            border-top: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
+        .login-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .login-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container d-flex align-items-center justify-content-center">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-4">
+                    <div class="login-card p-4">
+                        <div class="text-center mb-4">
+                            <h3 class="fw-bold text-primary">ChatNow Admin</h3>
+                            <p class="text-muted">Yönetici paneline giriş yapın</p>
+                        </div>
+                        <form id="loginForm">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Kullanıcı Adı</label>
+                                <input type="text" class="form-control" id="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Şifre</label>
+                                <input type="password" class="form-control" id="password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Giriş Yap</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Admin Panel -->
+    <div id="adminPanel" class="d-none">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="col-md-2 px-0">
+                    <div class="sidebar">
+                        <div class="p-3">
+                            <h5 class="text-white fw-bold">ChatNow Admin</h5>
+                        </div>
+                        <nav class="nav flex-column px-3">
+                            <a class="nav-link active" href="#" data-section="dashboard">
+                                <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                            </a>
+                            <a class="nav-link" href="#" data-section="users">
+                                <i class="fas fa-users me-2"></i> Kullanıcılar
+                            </a>
+                            <a class="nav-link" href="#" data-section="messages">
+                                <i class="fas fa-comments me-2"></i> Mesajlar
+                            </a>
+                            <a class="nav-link" href="#" data-section="settings">
+                                <i class="fas fa-cog me-2"></i> Ayarlar
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="col-md-10">
+                    <div class="main-content p-4">
+                        <!-- Dashboard Section -->
+                        <div id="dashboardSection">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h2 class="fw-bold">Dashboard</h2>
+                                <button class="btn btn-outline-primary" onclick="refreshStats()">
+                                    <i class="fas fa-sync-alt me-2"></i>Yenile
+                                </button>
+                            </div>
+
+                            <!-- Stats Cards -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <div class="card stat-card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-users fa-2x mb-2"></i>
+                                            <div class="stat-number" id="totalUsers">-</div>
+                                            <div>Toplam Kullanıcı</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card stat-card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-user-check fa-2x mb-2"></i>
+                                            <div class="stat-number" id="onlineUsers">-</div>
+                                            <div>Çevrimiçi</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card stat-card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-comments fa-2x mb-2"></i>
+                                            <div class="stat-number" id="totalMessages">-</div>
+                                            <div>Toplam Mesaj</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card stat-card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-comment-dots fa-2x mb-2"></i>
+                                            <div class="stat-number" id="totalChats">-</div>
+                                            <div>Toplam Chat</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Charts -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Cinsiyet Dağılımı</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <canvas id="genderChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Yaş Grupları</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <canvas id="ageChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Users Section -->
+                        <div id="usersSection" class="d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h2 class="fw-bold">Kullanıcı Yönetimi</h2>
+                                <div class="d-flex gap-2">
+                                    <input type="text" class="form-control" id="userSearch" placeholder="Kullanıcı ara...">
+                                    <button class="btn btn-primary" onclick="searchUsers()">
+                                        <i class="fas fa-search me-2"></i>Ara
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Ad Soyad</th>
+                                                    <th>Email</th>
+                                                    <th>Yaş</th>
+                                                    <th>Cinsiyet</th>
+                                                    <th>Durum</th>
+                                                    <th>Jeton</th>
+                                                    <th>İşlemler</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="usersTableBody">
+                                                <!-- Users will be loaded here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Messages Section -->
+                        <div id="messagesSection" class="d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h2 class="fw-bold">Mesaj Yönetimi</h2>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Gönderen</th>
+                                                    <th>Alıcı</th>
+                                                    <th>Mesaj</th>
+                                                    <th>Tarih</th>
+                                                    <th>İşlemler</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="messagesTableBody">
+                                                <!-- Messages will be loaded here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Settings Section -->
+                        <div id="settingsSection" class="d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h2 class="fw-bold">Ayarlar</h2>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5>Genel Ayarlar</h5>
+                                    <p class="text-muted">Admin paneli ayarları burada yapılabilir.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

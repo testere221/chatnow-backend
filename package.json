@@ -1,0 +1,50 @@
+{
+  "name": "chatnow-backend",
+  "version": "1.0.0",
+  "description": "ChatNow Backend API - Bun + Elysia + MongoDB",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "test": "bun test",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "keywords": [
+    "chat",
+    "messaging",
+    "bun",
+    "elysia",
+    "mongodb",
+    "websocket"
+  ],
+  "author": "ChatNow Team",
+  "license": "MIT",
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.0",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "elysia": "^1.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.0",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.32.6",
+    "ws": "^8.14.2",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/cors": "^2.8.17",
+    "@types/ws": "^8.5.10",
+    "@types/multer": "^1.4.11",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}
