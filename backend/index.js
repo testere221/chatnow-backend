@@ -1525,26 +1525,31 @@ app.get('/api/users/:id', async (req, res, next) => {
   const userId = req.params.id;
   
   // İLK KONTROL: Reserved route'ları engelle (ObjectId validation'dan ÖNCE)
+  // Bu kontrol MUTLAKA User.findById çağrısından ÖNCE yapılmalı
   const reservedRoutes = ['paginated', 'profile', 'blocked', 'update', 'update-diamonds'];
   if (reservedRoutes.includes(userId)) {
-    console.log(`⚠️ Reserved route blocked: /api/users/${userId}`);
-    // next() çağırarak bir sonraki route'a geçmeyi deniyoruz
-    // Ama Express zaten bu route'u eşleştirdiği için next() çalışmayabilir
-    // Bu durumda 404 döndürüyoruz
+    console.log(`⚠️ Reserved route blocked: /api/users/${userId} - Returning 404`);
     return res.status(404).json({ message: 'Route not found' });
   }
   
   // İKİNCİ KONTROL: ObjectId formatı kontrolü - Geçersiz formatlar için hemen dön
   // ObjectId formatı: 24 karakterlik hex string (0-9, a-f, A-F)
   const objectIdRegex = /^[0-9a-fA-F]{24}$/;
-  if (!objectIdRegex.test(userId) || !mongoose.Types.ObjectId.isValid(userId)) {
-    // Geçersiz ObjectId formatı - Bu route'a ait değil, 404 döndür
-    console.log(`⚠️ Invalid ObjectId format: ${userId}`);
+  if (!objectIdRegex.test(userId)) {
+    console.log(`⚠️ Invalid ObjectId format (regex): ${userId} - Returning 404`);
+    return res.status(404).json({ message: 'Route not found' });
+  }
+  
+  // ÜÇÜNCÜ KONTROL: Mongoose ObjectId validation
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    console.log(`⚠️ Invalid ObjectId format (mongoose): ${userId} - Returning 404`);
     return res.status(404).json({ message: 'Route not found' });
   }
   
   // Sadece geçerli ObjectId formatındaki ID'ler için devam et
+  // User.findById çağrısı SADECE buraya geldiğinde yapılmalı
   try {
+    console.log(`✅ Valid ObjectId, fetching user: ${userId}`);
     const user = await User.findById(userId).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
