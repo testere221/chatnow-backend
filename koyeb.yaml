@@ -1,0 +1,19 @@
+# Koyeb Deployment Configuration
+# Koyeb bu dosyayı otomatik olarak algılar ve deployment ayarlarını yapar
+
+# Build Configuration
+build:
+  type: dockerfile
+  dockerfile: Dockerfile
+
+# Runtime Configuration
+run:
+  type: dockerfile
+
+# Health Check (opsiyonel)
+# healthcheck:
+#   path: /
+#   interval: 30s
+#   timeout: 10s
+#   retries: 3
+
