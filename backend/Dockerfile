@@ -22,8 +22,10 @@ COPY --from=builder /app /app
 
 # Environment
 ENV NODE_ENV=production
-ENV PORT=8080
+# PORT environment variable Koyeb tarafından otomatik set edilir
+# Backend kodunda process.env.PORT || 3000 kullanılıyor
 
+# Koyeb PORT'u otomatik set eder, ama expose için bir port belirtmeliyiz
 EXPOSE 8080
 
 # Start

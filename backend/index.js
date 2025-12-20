@@ -137,6 +137,21 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
+// Tüm request'leri logla (debug için)
+app.use((req, res, next) => {
+  if (req.method === 'POST' && req.path.includes('/api/users')) {
+    console.log('🔍 POST request received:', {
+      method: req.method,
+      path: req.path,
+      url: req.url,
+      originalUrl: req.originalUrl,
+      baseUrl: req.baseUrl
+    });
+  }
+  next();
+});
+
 app.use(express.json({ limit: '2mb' })); // JSON limit
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
@@ -289,18 +304,23 @@ console.log('🔗 MongoDB URI:', MONGODB_URI ? 'Connected' : 'Not set');
 
 mongoose.connect(MONGODB_URI, {
   maxPoolSize: 10, // Maksimum bağlantı sayısı
-  serverSelectionTimeoutMS: 30000, // Sunucu seçim timeout (30 saniye)
-  socketTimeoutMS: 30000, // Socket timeout (30 saniye)
-  connectTimeoutMS: 30000, // Bağlantı timeout (30 saniye)
+  serverSelectionTimeoutMS: 5000, // Sunucu seçim timeout (5 saniye - daha hızlı hata)
+  socketTimeoutMS: 45000, // Socket timeout (45 saniye)
+  connectTimeoutMS: 10000, // Bağlantı timeout (10 saniye)
+}).catch((err) => {
+  console.error('❌ MongoDB bağlantı hatası:', err.message);
+  console.error('💡 Çözüm:');
+  console.error('   1. MongoDB Atlas IP whitelist\'ine IP\'ni ekle');
+  console.error('   2. Ya da local MongoDB kullan: mongodb://localhost:27017/chatnow');
+  console.error('   3. .env dosyasında MONGODB_URI\'yi kontrol et');
 });
 
 mongoose.connection.on('connected', () => {
-  // MongoDB bağlantısı başarılı
-  // MongoDB bağlantısı başarılı
+  console.log('✅ MongoDB bağlantısı başarılı');
 });
 
 mongoose.connection.on('error', (err) => {
-  // MongoDB bağlantı hatası
+  console.error('❌ MongoDB bağlantı hatası:', err.message);
 });
 
 // API Routes
@@ -398,33 +418,37 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    // Login denemesi
+    console.log('🔐 Login attempt for email:', email);
 
     const user = await User.findOne({ email });
-    // Kullanıcı bulundu
     
     if (!user || !user.password) {
+      console.log('❌ User not found or no password');
       return res.status(401).json({ message: 'Geçersiz kimlik bilgileri.' });
     }
+
+    console.log('✅ User found:', user.email);
 
     // Şifre karşılaştırması
     // Geçici olarak bcrypt yerine basit string karşılaştırması
     const isPasswordValid = password === user.password; 
     
     if (!isPasswordValid) {
-      // Geçersiz şifre
+      console.log('❌ Password invalid');
       return res.status(401).json({ message: 'Geçersiz kimlik bilgileri.' });
     }
+
+    console.log('✅ Password valid for user:', user.email);
 
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
     
     await User.findByIdAndUpdate(user._id, { is_online: true, last_active: new Date() });
 
-    res.json({
+    const responseData = {
       message: 'Giriş başarılı!',
       token,
       user: {
-        id: user._id,
+        id: user._id.toString(), // MongoDB ObjectId'yi string'e çevir
         email: user.email,
         name: user.name,
         surname: user.surname,
@@ -435,13 +459,17 @@ app.post('/api/auth/login', async (req, res) => {
         avatar_image: user.avatar_image,
         bg_color: user.bg_color,
         about: user.about,
-        hobbies: user.hobbies,
-        diamonds: user.diamonds,
-        is_online: user.is_online,
-        last_active: user.last_active
+        hobbies: user.hobbies || [],
+        diamonds: user.diamonds || 0,
+        is_online: true,
+        last_active: new Date()
       }
-    });
+    };
+
+    console.log('✅ Sending login response with token:', !!token, 'user:', !!responseData.user);
+    res.json(responseData);
   } catch (error) {
+    console.error('❌ Login error:', error);
     res.status(500).json({ message: 'Giriş sırasında bir hata oluştu.', error: error.message });
   }
 });
@@ -478,6 +506,11 @@ app.get('/api/users/paginated', authenticateToken, async (req, res) => {
 
     // Pagination request
     const currentUserId = req.user.userId;
+    
+    // currentUserId'yi ObjectId'ye çevir (eğer string ise)
+    const currentUserObjectId = mongoose.Types.ObjectId.isValid(currentUserId) 
+      ? new mongoose.Types.ObjectId(currentUserId) 
+      : currentUserId;
 
     let query = {};
     let sort = {};
@@ -493,7 +526,7 @@ app.get('/api/users/paginated', authenticateToken, async (req, res) => {
     }
 
     // Mevcut kullanıcıyı hariç tut
-    query._id = { $ne: currentUserId };
+    query._id = { $ne: currentUserObjectId };
 
     // Karşılıklı engelleme kontrolü
     const blockedByMe = await Block.find({ blocker_id: currentUserId }).select('blocked_id');
@@ -506,9 +539,14 @@ app.get('/api/users/paginated', authenticateToken, async (req, res) => {
 
     // Engellenen kullanıcıları hariç tut
     if (blockedUserIds.length > 0) {
+      // Blocked user ID'lerini ObjectId'ye çevir
+      const blockedObjectIds = blockedUserIds
+        .filter(id => mongoose.Types.ObjectId.isValid(id))
+        .map(id => new mongoose.Types.ObjectId(id));
+      
       query._id = { 
-        $ne: currentUserId,
-        $nin: blockedUserIds
+        $ne: currentUserObjectId,
+        $nin: blockedObjectIds.length > 0 ? blockedObjectIds : blockedUserIds
       };
     }
 
@@ -524,7 +562,7 @@ app.get('/api/users/paginated', authenticateToken, async (req, res) => {
       const userObj = user.toObject ? user.toObject() : user;
       return {
         ...userObj,
-        id: userObj._id, // Add id field for frontend compatibility
+        id: userObj._id?.toString() || String(userObj._id), // MongoDB ObjectId'yi string'e çevir
         last_active: userObj.last_active || new Date(),
         is_online: userObj.is_online || false
       };
@@ -1107,11 +1145,25 @@ app.post('/api/users/update-diamonds', authenticateToken, async (req, res) => {
   }
 });
 
-// Update user data endpoint
+// Update user data endpoint - Spesifik route, :id route'larından önce olmalı
 app.post('/api/users/update', authenticateToken, async (req, res) => {
   try {
+    console.log('🔧 Profile update request received');
+    console.log('🔧 Request URL:', req.url);
+    console.log('🔧 Request path:', req.path);
+    console.log('🔧 Request method:', req.method);
     const userId = req.user.userId;
     const { name, surname, age, location, about, hobbies, avatar_image } = req.body;
+    
+    console.log('🔧 Update data:', { userId, name, surname, age, location, about, hobbies, hasAvatarImage: !!avatar_image });
+
+    // userId'yi ObjectId'ye çevir (eğer string ise)
+    let userObjectId;
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      userObjectId = new mongoose.Types.ObjectId(userId);
+    } else {
+      userObjectId = userId;
+    }
 
     // Profil güncelleme isteği
 
@@ -1133,16 +1185,20 @@ app.post('/api/users/update', authenticateToken, async (req, res) => {
     }
 
     // Update data hazırlandı
+    console.log('🔧 Updating user with ObjectId:', userObjectId);
 
     const updatedUser = await User.findByIdAndUpdate(
-      userId,
+      userObjectId,
       updateData,
       { new: true }
     );
 
     if (!updatedUser) {
+      console.error('❌ User not found:', userObjectId);
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
+    
+    console.log('✅ User updated successfully:', updatedUser._id);
 
     // Kullanıcı başarıyla güncellendi
 
@@ -3467,12 +3523,59 @@ app.post('/api/admin/seed-token-packages', async (req, res) => {
 
 // Server başlat
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server çalışıyor: http://localhost:${PORT}`);
-  console.log(`🌐 Public Server: http://0.0.0.0:${PORT}`);
-  console.log(`📱 Mobile API: http://192.168.42.238:${PORT}`);
-  // console.log(`📊 WebSocket: ws://192.168.42.238:${PORT}`);
-  console.log(`📱 API Test: http://localhost:${PORT}/api/test`);
-  console.log(`🧪 Test Users: POST http://localhost:${PORT}/api/test/create-users`);
-  console.log(`🗑️ Delete Test: DELETE http://localhost:${PORT}/api/test/delete-users`);
-  console.log(`🔐 Admin Panel: http://localhost:${PORT}/admin`);
+  const os = require('os');
+  const networkInterfaces = os.networkInterfaces();
+  let localIP = 'localhost';
+  
+  // Local network IP'yi bul (VirtualBox network'ünü atla)
+  for (const interfaceName in networkInterfaces) {
+    const interfaces = networkInterfaces[interfaceName];
+    for (const iface of interfaces) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        // VirtualBox network'ünü atla (192.168.56.x)
+        if (!iface.address.startsWith('192.168.56.')) {
+          localIP = iface.address;
+          break;
+        }
+      }
+    }
+    if (localIP !== 'localhost' && !localIP.startsWith('192.168.56.')) break;
+  }
+  
+  // Eğer hala VirtualBox IP'si bulunduysa, tüm IP'leri listele ve en uygun olanı seç
+  if (localIP.startsWith('192.168.56.')) {
+    const allIPs = [];
+    for (const interfaceName in networkInterfaces) {
+      const interfaces = networkInterfaces[interfaceName];
+      for (const iface of interfaces) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          allIPs.push(iface.address);
+        }
+      }
+    }
+    // 192.168.204.x veya 192.168.1.x gibi gerçek network IP'sini bul
+    const realIP = allIPs.find(ip => ip.startsWith('192.168.204.') || ip.startsWith('192.168.1.') || ip.startsWith('192.168.0.'));
+    if (realIP) {
+      localIP = realIP;
+    }
+  }
+  
+  console.log('\n🚀 ========================================');
+  console.log(`   Backend Server Başlatıldı!`);
+  console.log('🚀 ========================================');
+  console.log(`\n📱 Local Development:`);
+  console.log(`   http://localhost:${PORT}`);
+  console.log(`\n📱 Expo Go için (Network IP):`);
+  console.log(`   http://${localIP}:${PORT}`);
+  console.log(`\n⚠️  Frontend'de kullanılan IP: 192.168.204.149`);
+  console.log(`   Eğer bu IP farklıysa, config/api.ts dosyasını güncelle!`);
+  console.log(`\n🔐 Admin Panel:`);
+  console.log(`   http://localhost:${PORT}/admin`);
+  console.log(`\n🧪 Test Endpoints:`);
+  console.log(`   GET  http://localhost:${PORT}/api/test`);
+  console.log(`   POST http://localhost:${PORT}/api/test/create-users`);
+  console.log(`   DELETE http://localhost:${PORT}/api/test/delete-users`);
+  console.log(`\n💡 Expo Go kullanıyorsan, frontend'de IP'yi şu şekilde güncelle:`);
+  console.log(`   config/api.ts -> BASE_URL: 'http://${localIP}:${PORT}'`);
+  console.log('\n');
 });

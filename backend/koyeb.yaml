@@ -1,0 +1,18 @@
+# Koyeb Configuration
+# Bu dosya Koyeb deployment için kullanılır
+
+name: chatnow-backend
+
+build:
+  type: dockerfile
+  dockerfile: Dockerfile
+
+run:
+  command: node index.js
+  env:
+    - PORT
+    - NODE_ENV=production
+    - MONGODB_URI
+    - JWT_SECRET
+    - CORS_ORIGIN
+
