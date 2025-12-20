@@ -191,12 +191,15 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
+    console.log('❌ authenticateToken: Token yok');
     return res.status(401).json({ message: 'Token gerekli' });
   }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
-      return res.status(403).json({ message: 'Geçersiz token' });
+      console.log('❌ authenticateToken: Token verify hatası:', err.message);
+      console.log('❌ Token:', token.substring(0, 20) + '...');
+      return res.status(403).json({ message: 'Geçersiz token', error: err.message });
     }
     req.user = user;
     next();
