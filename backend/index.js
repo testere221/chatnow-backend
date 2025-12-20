@@ -1518,28 +1518,22 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Get user by ID - Bu route tüm spesifik route'lardan SONRA olmalı
-// ÖNEMLİ: Bu route /api/users/paginated, /api/users/profile, /api/users/blocked gibi
-// spesifik route'lardan SONRA tanımlanmalı ki route çakışması olmasın
+// Get user by ID - Sadece geçerli MongoDB ObjectId formatındaki ID'ler için çalışır
+// ÖNEMLİ: Bu route sadece 24 karakterlik hex string (ObjectId) formatındaki ID'ler için eşleşir
+// Bu sayede "paginated", "profile", "blocked" gibi string'ler bu route'a düşmez
 app.get('/api/users/:id', async (req, res, next) => {
   const userId = req.params.id;
   
-  // Özel route'ları engelle - Bu route'a gelmemeli (EN ÖNCE KONTROL ET!)
-  // Bu kontrol User.findById çağrısından ÖNCE yapılmalı
-  const reservedRoutes = ['paginated', 'profile', 'blocked', 'update', 'update-diamonds'];
-  if (reservedRoutes.includes(userId)) {
-    console.log(`⚠️ Reserved route accessed via /api/users/:id: /api/users/${userId} - This should not happen!`);
-    console.log(`⚠️ Request URL: ${req.url}, Path: ${req.path}, Method: ${req.method}`);
+  // İLK KONTROL: ObjectId formatı kontrolü - Geçersiz formatlar için hemen dön
+  // Bu kontrol, reserved route'ları da yakalar çünkü onlar ObjectId formatında değil
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    // Geçersiz ObjectId formatı - Bu route'a ait değil, 404 döndür
+    // Express'in bir sonraki route'a geçmesi için next() çağrısı yapmıyoruz
+    // çünkü bu route zaten eşleşti, sadece geçersiz format olduğu için 404 döndürüyoruz
     return res.status(404).json({ message: 'Route not found' });
   }
   
-  // ObjectId validation - Geçersiz ID'ler için erken dönüş (reserved route kontrolünden SONRA)
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    console.log(`⚠️ Invalid ObjectId: ${userId}`);
-    return res.status(400).json({ message: 'Geçersiz kullanıcı ID\'si' });
-  }
-  
-  // Sadece geçerli ObjectId'ler için devam et
+  // Sadece geçerli ObjectId formatındaki ID'ler için devam et
   try {
     const user = await User.findById(userId).select('-password');
     if (!user) {
