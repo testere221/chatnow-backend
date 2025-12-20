@@ -14,9 +14,8 @@ COPY . .
 
 # Environment variables
 ENV NODE_ENV=production
-ENV PORT=8080
 
-# Port expose et
+# Port expose et (Koyeb otomatik PORT set eder)
 EXPOSE 8080
 
 # Uygulamayı başlat

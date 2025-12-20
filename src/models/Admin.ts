@@ -63,8 +63,6 @@ AdminSchema.methods.comparePassword = async function(candidatePassword: string):
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Indexes
-AdminSchema.index({ email: 1 });
-AdminSchema.index({ username: 1 });
+// Indexes (email ve username zaten unique: true ile index'lenmiş)
 
 export const Admin = mongoose.model<IAdmin>('Admin', AdminSchema);

@@ -92,8 +92,7 @@ const UserSchema = new Schema<IUser>({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-// Indexes
-UserSchema.index({ email: 1 });
+// Indexes (email zaten unique: true ile index'lenmiş)
 UserSchema.index({ is_online: 1 });
 UserSchema.index({ last_active: -1 });
 UserSchema.index({ created_at: -1 });
