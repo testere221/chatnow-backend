@@ -3584,6 +3584,7 @@ app.post('/api/admin/seed-token-packages', async (req, res) => {
 });
 
 // Server başlat
+// Server başlatılıyor - Koyeb auto-deploy test
 server.listen(PORT, '0.0.0.0', () => {
   const os = require('os');
   const networkInterfaces = os.networkInterfaces();
