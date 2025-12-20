@@ -1525,8 +1525,16 @@ app.get('/api/users/:id', async (req, res) => {
   try {
     const userId = req.params.id;
     
-    // ObjectId validation
+    // Özel route'ları engelle - Bu route'a gelmemeli
+    const reservedRoutes = ['paginated', 'profile', 'blocked', 'update', 'update-diamonds'];
+    if (reservedRoutes.includes(userId)) {
+      console.log(`⚠️ Reserved route accessed: /api/users/${userId}`);
+      return res.status(404).json({ message: 'Route not found' });
+    }
+    
+    // ObjectId validation - Geçersiz ID'ler için erken dönüş
     if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.log(`⚠️ Invalid ObjectId: ${userId}`);
       return res.status(400).json({ message: 'Geçersiz kullanıcı ID\'si' });
     }
     
