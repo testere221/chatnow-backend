@@ -1,5 +1,5 @@
-# Node.js base image (Chainguard)
-FROM cgr.dev/chainguard/node:20 AS builder
+# Node.js base image
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ RUN npm ci --omit=dev
 COPY backend/ ./
 
 # Runtime
-FROM cgr.dev/chainguard/node:20
+FROM node:20-alpine
 
 WORKDIR /app
 
