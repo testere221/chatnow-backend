@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { Elysia } from 'elysia';
 import { z } from 'zod';
 import { generateToken, verifyToken } from '../config/auth';
