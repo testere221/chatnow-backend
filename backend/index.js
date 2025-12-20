@@ -1518,6 +1518,48 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Get user by ID - Bu route tüm spesifik route'lardan SONRA olmalı
+// ÖNEMLİ: Bu route /api/users/paginated, /api/users/profile, /api/users/blocked gibi
+// spesifik route'lardan SONRA tanımlanmalı ki route çakışması olmasın
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // ObjectId validation
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Geçersiz kullanıcı ID\'si' });
+    }
+    
+    const user = await User.findById(userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+    }
+
+    res.json({
+      id: user._id.toString(),
+      _id: user._id.toString(),
+      name: user.name,
+      surname: user.surname,
+      age: user.age,
+      location: user.location,
+      gender: user.gender,
+      avatar: user.avatar,
+      avatar_image: user.avatar_image,
+      bg_color: user.bg_color,
+      about: user.about,
+      hobbies: user.hobbies,
+      diamonds: user.diamonds,
+      is_online: user.is_online,
+      last_active: user.last_active,
+      created_at: user.created_at,
+      updated_at: user.updated_at
+    });
+  } catch (error) {
+    console.error('❌ Get user error:', error);
+    res.status(500).json({ message: 'Kullanıcı bilgileri alınırken hata oluştu.', error: error.message });
+  }
+});
+
 // Kullanıcının engellenip engellenmediğini kontrol et
 app.get('/api/users/:id/block-status', async (req, res) => {
   try {
