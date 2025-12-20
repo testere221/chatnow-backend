@@ -1,19 +1,19 @@
-# Node.js base image
-FROM node:20-alpine AS builder
+# Node.js base image (Chainguard)
+FROM cgr.dev/chainguard/node:20 AS builder
 
 WORKDIR /app
 
-# Copy backend package files
+# Package files
 COPY backend/package*.json ./
 
 # Install dependencies
 RUN npm ci --omit=dev
 
-# Copy backend source code
+# Copy source code
 COPY backend/ ./
 
 # Runtime
-FROM node:20-alpine
+FROM cgr.dev/chainguard/node:20
 
 WORKDIR /app
 
@@ -22,8 +22,10 @@ COPY --from=builder /app /app
 
 # Environment
 ENV NODE_ENV=production
-ENV PORT=8080
+# PORT environment variable Koyeb tarafından otomatik set edilir
+# Backend kodunda process.env.PORT || 3000 kullanılıyor
 
+# Koyeb PORT'u otomatik set eder, ama expose için bir port belirtmeliyiz
 EXPOSE 8080
 
 # Start
