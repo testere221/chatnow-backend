@@ -24,17 +24,19 @@ const app = new Elysia()
       .use(messageRoutes)
       .use(chatRoutes)
       .use(adminRoutes)
-  )
-  .listen({
-    port: parseInt(process.env.PORT || '3000'),
-    hostname: '0.0.0.0'
-  });
+  );
 
 // MongoDB bağlantısını başlat
 connectDatabase().then(() => {
   console.log('🚀 ChatNow Backend API başlatıldı');
-  console.log(`📡 Server: http://localhost:${process.env.PORT || 3000}`);
-  console.log(`📊 Admin Panel: http://localhost:${process.env.PORT || 3000}/admin`);
+  const port = process.env.PORT || '3000';
+  console.log(`📡 Server: http://localhost:${port}`);
+  console.log(`📊 Admin Panel: http://localhost:${port}/admin`);
 });
 
-export default app;
+// Bun runtime otomatik olarak PORT environment variable'ını kullanır
+export default {
+  port: parseInt(process.env.PORT || '3000'),
+  hostname: '0.0.0.0',
+  fetch: app.fetch
+};
