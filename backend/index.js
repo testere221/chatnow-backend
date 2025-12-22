@@ -20,6 +20,7 @@ const Block = require('./models/Block');
 const Admin = require('./models/Admin');
 const TokenPackage = require('./models/TokenPackage');
 const Report = require('./models/Report');
+const Purchase = require('./models/Purchase');
 
 // Services
 const { sendEmail } = require('./services/emailService');
@@ -2302,10 +2303,20 @@ app.post('/api/billing/verify', authenticateToken, async (req, res) => {
     const { productId, purchaseToken, orderId, packageName } = req.body || {};
     const userId = req.user.userId;
 
-    console.log('💳 Purchase verify request:', { userId, productId, orderId, packageName: packageName || 'com.ferhatkortak2.florty' });
+    console.log('💳 Purchase verify request:', { userId, productId, orderId, packageName: packageName || 'com.ferhatkortak2.chatnow' });
 
     if (!productId || !purchaseToken) {
       return res.status(400).json({ message: 'Eksik parametre: productId ve purchaseToken gerekli' });
+    }
+
+    // 0) Check if this purchase token was already used (duplicate prevention)
+    const existingPurchase = await Purchase.findOne({ purchase_token: purchaseToken });
+    if (existingPurchase) {
+      console.error('❌ Duplicate purchase detected:', { purchaseToken: purchaseToken.substring(0, 20) + '...', userId, existingUserId: existingPurchase.user_id });
+      return res.status(400).json({ 
+        message: 'Bu satın alma zaten işlenmiş. Tekrar kullanılamaz.',
+        error: 'DUPLICATE_PURCHASE'
+      });
     }
 
     // 1) Find token package by product_id
@@ -2315,56 +2326,75 @@ app.post('/api/billing/verify', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Ürün bulunamadı: ' + productId });
     }
 
-    // 2) Verify with Google Play Developer API
-    if (androidPublisher) {
+    // 2) Verify with Google Play Developer API - ZORUNLU!
+    let verificationSuccess = false;
+    let googlePlayResponse = null;
+    
+    if (!androidPublisher) {
+      console.error('❌ Google Play API not configured - purchase verification REQUIRED');
+      return res.status(500).json({ 
+        message: 'Ödeme doğrulama sistemi yapılandırılmamış. Lütfen yöneticiye bildirin.',
+        error: 'GOOGLE_SERVICE_ACCOUNT_KEY not set'
+      });
+    }
+
+    try {
+      const pkgName = packageName || 'com.ferhatkortak2.chatnow';
+      console.log('🔍 Verifying purchase with Google Play API...', { packageName: pkgName, productId, purchaseToken: purchaseToken.substring(0, 20) + '...' });
+      
+      googlePlayResponse = await androidPublisher.purchases.products.get({
+        packageName: pkgName,
+        productId: productId,
+        token: purchaseToken,
+      });
+
+      const purchaseState = googlePlayResponse.data.purchaseState;
+      const consumptionState = googlePlayResponse.data.consumptionState;
+
+      console.log('✅ Google Play API response:', { purchaseState, consumptionState, orderId: googlePlayResponse.data.orderId });
+
+      // purchaseState: 0 = purchased, 1 = canceled
+      if (purchaseState !== 0) {
+        console.error('❌ Purchase not valid - state:', purchaseState);
+        return res.status(400).json({ message: 'Satın alma geçersiz veya iptal edilmiş' });
+      }
+
+      // consumptionState: 0 = not consumed, 1 = consumed
+      if (consumptionState === 1) {
+        console.error('❌ Purchase already consumed');
+        return res.status(400).json({ message: 'Bu satın alma zaten kullanılmış' });
+      }
+
+      // Acknowledge/consume the purchase
       try {
-        const pkgName = packageName || 'com.ferhatkortak2.florty';
-        console.log('🔍 Verifying purchase with Google Play API...', { packageName: pkgName, productId, purchaseToken: purchaseToken.substring(0, 20) + '...' });
-        
-        const response = await androidPublisher.purchases.products.get({
+        await androidPublisher.purchases.products.acknowledge({
           packageName: pkgName,
           productId: productId,
           token: purchaseToken,
         });
-
-        const purchaseState = response.data.purchaseState;
-        const consumptionState = response.data.consumptionState;
-
-        console.log('✅ Google Play API response:', { purchaseState, consumptionState, orderId: response.data.orderId });
-
-        // purchaseState: 0 = purchased, 1 = canceled
-        if (purchaseState !== 0) {
-          console.error('❌ Purchase not valid - state:', purchaseState);
-          return res.status(400).json({ message: 'Satın alma geçersiz' });
-        }
-
-        // consumptionState: 0 = not consumed, 1 = consumed
-        if (consumptionState === 1) {
-          console.error('❌ Purchase already consumed');
-          return res.status(400).json({ message: 'Bu satın alma zaten kullanılmış' });
-        }
-
-        // Acknowledge/consume the purchase
-        try {
-          await androidPublisher.purchases.products.acknowledge({
-            packageName: pkgName,
-            productId: productId,
-            token: purchaseToken,
-          });
-          console.log('✅ Purchase acknowledged');
-        } catch (ackError) {
-          console.warn('⚠️  Acknowledge failed (might be already acknowledged):', ackError.message);
-        }
-      } catch (apiError) {
-        console.error('❌ Google Play API verification failed:', apiError.message);
-        // Continue anyway for testing - remove this in production!
-        console.warn('⚠️  Continuing despite API error for testing...');
+        console.log('✅ Purchase acknowledged');
+        verificationSuccess = true;
+      } catch (ackError) {
+        console.warn('⚠️  Acknowledge failed (might be already acknowledged):', ackError.message);
+        // Acknowledge hatası olsa bile, purchase state geçerliyse devam edebiliriz
+        verificationSuccess = true;
       }
-    } else {
-      console.warn('⚠️  Google Play API not configured - skipping verification (TEST MODE)');
+    } catch (apiError) {
+      console.error('❌ Google Play API verification failed:', apiError.message);
+      console.error('❌ API Error details:', apiError);
+      return res.status(400).json({ 
+        message: 'Ödeme doğrulaması başarısız. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin.',
+        error: apiError.message 
+      });
     }
 
-    // 3) Credit diamonds atomically
+    // Sadece doğrulama başarılıysa jetonları yükle
+    if (!verificationSuccess) {
+      console.error('❌ Purchase verification failed - NOT crediting diamonds');
+      return res.status(400).json({ message: 'Ödeme doğrulaması başarısız' });
+    }
+
+    // 3) Credit diamonds atomically (sadece doğrulama başarılıysa)
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $inc: { diamonds: pkg.token_amount }, last_active: new Date() },
@@ -2378,7 +2408,25 @@ app.post('/api/billing/verify', authenticateToken, async (req, res) => {
 
     console.log('✅ Diamonds credited:', { userId, amount: pkg.token_amount, newTotal: updatedUser.diamonds });
 
-    // 4) Return credited info
+    // 4) Save purchase record to prevent duplicates
+    try {
+      const purchaseRecord = new Purchase({
+        user_id: userId,
+        product_id: productId,
+        purchase_token: purchaseToken,
+        order_id: orderId || googlePlayResponse?.data?.orderId,
+        package_name: packageName || 'com.ferhatkortak2.chatnow',
+        token_amount: pkg.token_amount,
+        verified: true
+      });
+      await purchaseRecord.save();
+      console.log('✅ Purchase record saved:', { purchaseId: purchaseRecord._id });
+    } catch (saveError) {
+      // Purchase kaydı kaydedilemezse bile jetonlar yüklendi, bu kritik değil ama log'layalım
+      console.error('⚠️  Failed to save purchase record (non-critical):', saveError.message);
+    }
+
+    // 5) Return credited info
     return res.json({
       success: true,
       diamondsCredited: pkg.token_amount,
