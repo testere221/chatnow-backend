@@ -2,11 +2,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiService } from '../../config/api';
 import { useProfile } from '../../contexts/ProfileContext';
 import { NavigationHelper } from '../../utils/NavigationHelper';
+import { BillingService } from '../../services/BillingService';
 
 type DiamondPackage = { id: string; amount: number; priceText: string; product_id?: string };
 type PaymentMethod = { id: string; name: string; icon: keyof typeof Ionicons.glyphMap };
@@ -43,13 +44,15 @@ export default function Purchase() {
 
   const [packages, setPackages] = useState<DiamondPackage[]>(FALLBACK_PACKAGES);
   const [loading, setLoading] = useState(true);
+  const [purchasing, setPurchasing] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<string>('2');
   const [selectedMethod, setSelectedMethod] = useState<string>('1');
 
-  // Fetch packages from backend
+  // Initialize BillingService and fetch packages
   useEffect(() => {
-    const fetchPackages = async () => {
+    const initializeBilling = async () => {
       try {
+        // Fetch packages from backend
         const response = await ApiService.request<any[]>('/api/token-packages');
         
         if (response && response.length > 0) {
@@ -66,6 +69,24 @@ export default function Purchase() {
           if (formattedPackages.length > 0) {
             setSelectedPkg(formattedPackages[0].id);
           }
+
+          // Initialize BillingService with product IDs
+          const productIds = formattedPackages
+            .map(pkg => pkg.product_id)
+            .filter((id): id is string => !!id);
+          
+          if (productIds.length > 0 && Platform.OS === 'android') {
+            try {
+              await BillingService.initialize(productIds);
+              console.log('[Purchase] BillingService initialized successfully');
+            } catch (billingError) {
+              console.error('[Purchase] Failed to initialize BillingService:', billingError);
+              // Billing initialization hatası kritik değil, devam edebiliriz
+            }
+          }
+        } else {
+          // Fallback paketleri kullan
+          setPackages(FALLBACK_PACKAGES);
         }
       } catch (error) {
         console.error('Paketler yüklenemedi, fallback kullanılıyor:', error);
@@ -76,14 +97,56 @@ export default function Purchase() {
       }
     };
 
-    fetchPackages();
+    initializeBilling();
   }, []);
 
-  const onBuy = () => {
+  const onBuy = async () => {
     const p = packages.find(x => x.id === selectedPkg);
     if (!p) return;
-    addDiamonds(p.amount);
-    NavigationHelper.goToProfile();
+
+    // Eğer product_id yoksa veya Android değilse, test modunda direkt jeton ekle
+    if (!p.product_id || Platform.OS !== 'android') {
+      console.warn('[Purchase] No product_id or not Android, adding diamonds directly (test mode)');
+      addDiamonds(p.amount);
+      NavigationHelper.goToProfile();
+      return;
+    }
+
+    // Google Play Billing ile satın alma
+    if (purchasing) return; // Zaten satın alma işlemi devam ediyor
+
+    setPurchasing(true);
+    try {
+      console.log('[Purchase] Starting purchase for product:', p.product_id);
+      const result = await BillingService.purchase(p.product_id);
+      
+      if (result.success) {
+        // Backend'den jetonlar zaten yüklendi, sadece UI'ı güncelle
+        const creditedAmount = result.diamondsCredited || p.amount;
+        addDiamonds(creditedAmount);
+        
+        Alert.alert(
+          'Başarılı!',
+          `${creditedAmount} jeton hesabınıza yüklendi.`,
+          [{ text: 'Tamam', onPress: () => NavigationHelper.goToProfile() }]
+        );
+      } else {
+        Alert.alert(
+          'Satın Alma Başarısız',
+          result.message || 'Satın alma işlemi tamamlanamadı. Lütfen tekrar deneyin.',
+          [{ text: 'Tamam' }]
+        );
+      }
+    } catch (error: any) {
+      console.error('[Purchase] Purchase error:', error);
+      Alert.alert(
+        'Hata',
+        error?.message || 'Satın alma sırasında bir hata oluştu. Lütfen tekrar deneyin.',
+        [{ text: 'Tamam' }]
+      );
+    } finally {
+      setPurchasing(false);
+    }
   };
 
   return (
@@ -164,10 +227,24 @@ export default function Purchase() {
 
       {/* Buy button */}
       <View style={styles.buyBar}>
-        <TouchableOpacity onPress={onBuy} style={styles.buyBtn} activeOpacity={0.92}>
+        <TouchableOpacity 
+          onPress={onBuy} 
+          style={[styles.buyBtn, purchasing && styles.buyBtnDisabled]} 
+          activeOpacity={0.92}
+          disabled={purchasing || loading}
+        >
           <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.buyGrad}>
-            <Ionicons name="diamond" size={18} color="#fff" />
-            <Text style={styles.buyText}>Satın Al</Text>
+            {purchasing ? (
+              <>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.buyText}>İşleniyor...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="diamond" size={18} color="#fff" />
+                <Text style={styles.buyText}>Satın Al</Text>
+              </>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -241,6 +318,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
   },
   buyBtn: { borderRadius: 14, overflow: 'hidden' },
+  buyBtnDisabled: { opacity: 0.6 },
   buyGrad: { height: 48, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   buyText: { color: '#fff', fontSize: 16, fontWeight: '700', marginLeft: 6 },
 });

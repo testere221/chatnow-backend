@@ -25,15 +25,20 @@ interface MessagesResponse {
 
 // API Configuration
 export const API_CONFIG = {
-  // Railway Production URLs
-  BASE_URL: 'https://observant-wisdom-production-ee9f.up.railway.app',
-  WEBSOCKET_URL: 'https://observant-wisdom-production-ee9f.up.railway.app',
+  // Koyeb Production URLs (Production için kullan)
+  BASE_URL: 'https://small-adiana-chatnow-a008308d.koyeb.app',
+  WEBSOCKET_URL: 'https://small-adiana-chatnow-a008308d.koyeb.app',
   
+  // Local Development URLs (Expo Go için kullan - Local test için)
+  // Not: Expo Go/Emulator'da localhost çalışmaz, network IP kullanılmalı
+  // IP'yi bulmak için: Windows'ta "ipconfig" komutunu çalıştır, "IPv4 Address" değerini al
+  // Bulunan IP: 192.168.204.149 (Network)
+  // BASE_URL: 'http://192.168.204.149:3000',
+  // WEBSOCKET_URL: 'http://192.168.204.149:3000',
   
-
-  // Ngrok URLs (commented out for local development):
-  // BASE_URL: 'https://a8505e689bab.ngrok-free.app',
-  // WEBSOCKET_URL: 'https://a8505e689bab.ngrok-free.app',
+  // Railway Production URLs (backup)
+  // BASE_URL: 'https://observant-wisdom-production-ee9f.up.railway.app',
+  // WEBSOCKET_URL: 'https://observant-wisdom-production-ee9f.up.railway.app',
   ENDPOINTS: {
     AUTH: {
       REGISTER: '/api/auth/register',
@@ -388,6 +393,19 @@ export class ApiService {
   static async deleteAccount() {
     return this.request(API_CONFIG.ENDPOINTS.AUTH.DELETE_ACCOUNT, {
       method: 'DELETE',
+    });
+  }
+
+  // Google Play Billing verification
+  static async verifyAndroidPurchase(data: {
+    productId: string;
+    purchaseToken: string;
+    orderId?: string;
+    packageName?: string;
+  }) {
+    return this.request('/api/billing/verify', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 }

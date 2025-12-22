@@ -2,11 +2,11 @@
   "expo": {
     "name": "ChatNow",
     "slug": "chatnow-app",
-    "version": "1.0.0",
+    "version": "1.0.81",
     "icon": "./assets/images/icon.png",
     "android": {
       "package": "com.ferhatkortak2.chatnow",
-      "versionCode": 3,
+      "versionCode": 81,
       "icon": "./assets/images/icon.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android-icon-foreground.png",
