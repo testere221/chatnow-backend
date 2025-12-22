@@ -68,11 +68,8 @@ export class BillingService {
     if (this.productsLoaded && this.products.length > 0) return this.products;
     try {
       console.log('[BillingService] Loading products:', productIds);
-      // v14 API: fetchProducts expects object with skus and type
-      const products = await fetchProducts({ 
-        skus: productIds, 
-        type: 'in-app' 
-      });
+      // v13 API: fetchProducts takes skus array directly
+      const products = await fetchProducts({ skus: productIds });
       console.log('[BillingService] Products loaded:', products.map(p => ({ id: p.productId, title: p.title })));
       this.products = products;
       this.productsLoaded = true;
@@ -100,14 +97,13 @@ export class BillingService {
     try {
       console.log('[BillingService] Requesting purchase for:', productId);
       
-      // v14 API: requestPurchase expects object with type and platform-specific request
-      const purchase = await requestPurchase({
-        type: 'in-app',
-        request: {
-          android: { skus: [productId] },
-          ios: { sku: productId }
-        }
-      });
+      // v13 API: requestPurchase takes sku directly for Android
+      let purchase: any;
+      if (Platform.OS === 'android') {
+        purchase = await requestPurchase({ sku: productId });
+      } else {
+        purchase = await requestPurchase({ sku: productId });
+      }
       console.log('[BillingService] Purchase result:', purchase);
 
       const p = Array.isArray(purchase) ? purchase[0] : purchase;
