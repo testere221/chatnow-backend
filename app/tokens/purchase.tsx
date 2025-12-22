@@ -75,15 +75,19 @@ export default function Purchase() {
             .filter((id): id is string => !!id);
           
           if (productIds.length > 0 && Platform.OS === 'android') {
-            try {
-              // Lazy import BillingService to avoid crashes in Expo Go
-              const { BillingService } = await import('../../services/BillingService');
-              await BillingService.initialize(productIds);
-              console.log('[Purchase] BillingService initialized successfully');
-            } catch (billingError: any) {
-              console.warn('[Purchase] BillingService not available (Expo Go or build issue):', billingError?.message || billingError);
-              // Billing initialization hatası kritik değil, devam edebiliriz
-            }
+            // BillingService initialization'ı non-blocking yap (hata olsa bile devam et)
+            (async () => {
+              try {
+                // Lazy import BillingService to avoid crashes
+                const { BillingService } = await import('../../services/BillingService');
+                await BillingService.initialize(productIds);
+                console.log('[Purchase] BillingService initialized successfully');
+              } catch (billingError: any) {
+                console.warn('[Purchase] BillingService initialization failed (non-critical):', billingError?.message || billingError);
+                // Billing initialization hatası kritik değil, devam edebiliriz
+                // Kullanıcı satın alma yapmaya çalıştığında tekrar deneyeceğiz
+              }
+            })();
           }
         } else {
           // Fallback paketleri kullan
@@ -103,7 +107,10 @@ export default function Purchase() {
 
   const onBuy = async () => {
     const p = packages.find(x => x.id === selectedPkg);
-    if (!p) return;
+    if (!p) {
+      console.error('[Purchase] Package not found for selectedPkg:', selectedPkg);
+      return;
+    }
 
     // Eğer product_id yoksa veya Android değilse, test modunda direkt jeton ekle
     if (!p.product_id || Platform.OS !== 'android') {
@@ -114,12 +121,42 @@ export default function Purchase() {
     }
 
     // Google Play Billing ile satın alma
-    if (purchasing) return; // Zaten satın alma işlemi devam ediyor
+    if (purchasing) {
+      console.warn('[Purchase] Purchase already in progress');
+      return; // Zaten satın alma işlemi devam ediyor
+    }
 
     setPurchasing(true);
     try {
-      // Lazy import BillingService to avoid crashes in Expo Go
-      const { BillingService } = await import('../../services/BillingService');
+      console.log('[Purchase] Attempting to load BillingService...');
+      
+      // Lazy import BillingService
+      let BillingService: any;
+      try {
+        const billingModule = await import('../../services/BillingService');
+        BillingService = billingModule.BillingService;
+        console.log('[Purchase] BillingService loaded successfully');
+      } catch (importError: any) {
+        console.error('[Purchase] Failed to import BillingService:', importError);
+        throw new Error('BillingService modülü yüklenemedi: ' + (importError?.message || 'Bilinmeyen hata'));
+      }
+
+      // BillingService'in initialize edilip edilmediğini kontrol et ve gerekirse initialize et
+      try {
+        console.log('[Purchase] Checking BillingService initialization...');
+        // Initialize edilmemişse tekrar dene
+        const productIds = packages
+          .map(pkg => pkg.product_id)
+          .filter((id): id is string => !!id);
+        
+        if (productIds.length > 0) {
+          await BillingService.initialize(productIds);
+          console.log('[Purchase] BillingService initialized');
+        }
+      } catch (initError: any) {
+        console.warn('[Purchase] BillingService initialization warning (may already be initialized):', initError?.message);
+        // Initialize hatası kritik değil, devam et
+      }
       
       console.log('[Purchase] Starting purchase for product:', p.product_id);
       const result = await BillingService.purchase(p.product_id);
@@ -143,9 +180,13 @@ export default function Purchase() {
       }
     } catch (error: any) {
       console.error('[Purchase] Purchase error:', error);
+      console.error('[Purchase] Error stack:', error?.stack);
+      console.error('[Purchase] Error details:', JSON.stringify(error, null, 2));
       
-      // Eğer BillingService yüklenemezse (Expo Go), test modunda devam et
-      if (error?.message?.includes('Cannot find module') || error?.code === 'MODULE_NOT_FOUND') {
+      // Eğer BillingService yüklenemezse, test modunda devam et
+      if (error?.message?.includes('Cannot find module') || 
+          error?.message?.includes('BillingService modülü') ||
+          error?.code === 'MODULE_NOT_FOUND') {
         console.warn('[Purchase] BillingService not available, using test mode');
         addDiamonds(p.amount);
         Alert.alert(
