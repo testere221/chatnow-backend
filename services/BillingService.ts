@@ -68,7 +68,7 @@ export class BillingService {
     if (this.productsLoaded && this.products.length > 0) return this.products;
     try {
       console.log('[BillingService] Loading products:', productIds);
-      // v12 API: fetchProducts takes skus array directly
+      // v11 API: fetchProducts takes skus array directly
       const products = await fetchProducts({ skus: productIds });
       console.log('[BillingService] Products loaded:', products.map(p => ({ id: p.productId, title: p.title })));
       this.products = products;
@@ -97,7 +97,7 @@ export class BillingService {
     try {
       console.log('[BillingService] Requesting purchase for:', productId);
       
-      // v12 API: requestPurchase takes sku string directly
+      // v11 API: requestPurchase takes sku string directly
       const purchase = await requestPurchase({ sku: productId });
       console.log('[BillingService] Purchase result:', purchase);
 
