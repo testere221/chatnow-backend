@@ -1,11 +1,11 @@
 import { Platform } from 'react-native';
 import {
-    fetchProducts,
-    finishTransaction,
-    flushFailedPurchasesCachedAsPendingAndroid,
-    initConnection,
-    Product,
-    requestPurchase
+  fetchProducts,
+  finishTransaction,
+  flushFailedPurchasesCachedAsPendingAndroid,
+  initConnection,
+  Product,
+  requestPurchase
 } from 'react-native-iap';
 import { ApiService } from '../config/api';
 
@@ -68,7 +68,7 @@ export class BillingService {
     if (this.productsLoaded && this.products.length > 0) return this.products;
     try {
       console.log('[BillingService] Loading products:', productIds);
-      // v13 API: fetchProducts takes skus array directly
+      // v12 API: fetchProducts takes skus array directly
       const products = await fetchProducts({ skus: productIds });
       console.log('[BillingService] Products loaded:', products.map(p => ({ id: p.productId, title: p.title })));
       this.products = products;
