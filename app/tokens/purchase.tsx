@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiService } from '../../config/api';
 import { useProfile } from '../../contexts/ProfileContext';
 import { NavigationHelper } from '../../utils/NavigationHelper';
-import { BillingService } from '../../services/BillingService';
 
 type DiamondPackage = { id: string; amount: number; priceText: string; product_id?: string };
 type PaymentMethod = { id: string; name: string; icon: keyof typeof Ionicons.glyphMap };
@@ -70,17 +69,19 @@ export default function Purchase() {
             setSelectedPkg(formattedPackages[0].id);
           }
 
-          // Initialize BillingService with product IDs
+          // Initialize BillingService with product IDs (only in production builds, not Expo Go)
           const productIds = formattedPackages
             .map(pkg => pkg.product_id)
             .filter((id): id is string => !!id);
           
           if (productIds.length > 0 && Platform.OS === 'android') {
             try {
+              // Lazy import BillingService to avoid crashes in Expo Go
+              const { BillingService } = await import('../../services/BillingService');
               await BillingService.initialize(productIds);
               console.log('[Purchase] BillingService initialized successfully');
-            } catch (billingError) {
-              console.error('[Purchase] Failed to initialize BillingService:', billingError);
+            } catch (billingError: any) {
+              console.warn('[Purchase] BillingService not available (Expo Go or build issue):', billingError?.message || billingError);
               // Billing initialization hatası kritik değil, devam edebiliriz
             }
           }
@@ -117,6 +118,9 @@ export default function Purchase() {
 
     setPurchasing(true);
     try {
+      // Lazy import BillingService to avoid crashes in Expo Go
+      const { BillingService } = await import('../../services/BillingService');
+      
       console.log('[Purchase] Starting purchase for product:', p.product_id);
       const result = await BillingService.purchase(p.product_id);
       
@@ -139,11 +143,23 @@ export default function Purchase() {
       }
     } catch (error: any) {
       console.error('[Purchase] Purchase error:', error);
-      Alert.alert(
-        'Hata',
-        error?.message || 'Satın alma sırasında bir hata oluştu. Lütfen tekrar deneyin.',
-        [{ text: 'Tamam' }]
-      );
+      
+      // Eğer BillingService yüklenemezse (Expo Go), test modunda devam et
+      if (error?.message?.includes('Cannot find module') || error?.code === 'MODULE_NOT_FOUND') {
+        console.warn('[Purchase] BillingService not available, using test mode');
+        addDiamonds(p.amount);
+        Alert.alert(
+          'Test Modu',
+          `${p.amount} jeton test modunda eklendi. Production build'de gerçek satın alma çalışacak.`,
+          [{ text: 'Tamam', onPress: () => NavigationHelper.goToProfile() }]
+        );
+      } else {
+        Alert.alert(
+          'Hata',
+          error?.message || 'Satın alma sırasında bir hata oluştu. Lütfen tekrar deneyin.',
+          [{ text: 'Tamam' }]
+        );
+      }
     } finally {
       setPurchasing(false);
     }
