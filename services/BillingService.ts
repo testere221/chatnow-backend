@@ -97,13 +97,8 @@ export class BillingService {
     try {
       console.log('[BillingService] Requesting purchase for:', productId);
       
-      // v13 API: requestPurchase takes sku directly for Android
-      let purchase: any;
-      if (Platform.OS === 'android') {
-        purchase = await requestPurchase({ sku: productId });
-      } else {
-        purchase = await requestPurchase({ sku: productId });
-      }
+      // v12 API: requestPurchase takes sku string directly
+      const purchase = await requestPurchase({ sku: productId });
       console.log('[BillingService] Purchase result:', purchase);
 
       const p = Array.isArray(purchase) ? purchase[0] : purchase;
