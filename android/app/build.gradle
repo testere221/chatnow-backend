@@ -19,6 +19,10 @@ react {
     // works correctly with Expo projects.
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
+    
+    // Set NODE_ENV for build process
+    nodeExecutableAndArgs = ["node"]
+    extraPackagerArgs = []
 
     /* Folders */
      //   The root of your project, i.e. where "package.json" lives. Default is '../..'
@@ -92,13 +96,10 @@ android {
         applicationId 'com.ferhatkortak2.florty'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 84
-        versionName "1.0.84"
+        versionCode 28
+        versionName "1.0.28"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
-        
-        // react-native-iap için Play Store variant'ını seç
-        missingDimensionStrategy 'store', 'play'
     }
     signingConfigs {
         debug {
@@ -129,9 +130,6 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
             crunchPngs enablePngCrunchInRelease.toBoolean()
-            
-            // react-native-iap için Play Store variant'ını seç
-            matchingFallbacks = ['play', 'release']
         }
     }
     packagingOptions {

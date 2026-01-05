@@ -2,7 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiService } from '../../config/api';
 import { useProfile } from '../../contexts/ProfileContext';
@@ -43,15 +43,13 @@ export default function Purchase() {
 
   const [packages, setPackages] = useState<DiamondPackage[]>(FALLBACK_PACKAGES);
   const [loading, setLoading] = useState(true);
-  const [purchasing, setPurchasing] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<string>('2');
   const [selectedMethod, setSelectedMethod] = useState<string>('1');
 
-  // Initialize BillingService and fetch packages
+  // Fetch packages from backend
   useEffect(() => {
-    const initializeBilling = async () => {
+    const fetchPackages = async () => {
       try {
-        // Fetch packages from backend
         const response = await ApiService.request<any[]>('/api/token-packages');
         
         if (response && response.length > 0) {
@@ -68,30 +66,6 @@ export default function Purchase() {
           if (formattedPackages.length > 0) {
             setSelectedPkg(formattedPackages[0].id);
           }
-
-          // Initialize BillingService with product IDs (only in production builds, not Expo Go)
-          const productIds = formattedPackages
-            .map(pkg => pkg.product_id)
-            .filter((id): id is string => !!id);
-          
-          if (productIds.length > 0 && Platform.OS === 'android') {
-            // BillingService initialization'ı non-blocking yap (hata olsa bile devam et)
-            (async () => {
-              try {
-                // Lazy import BillingService to avoid crashes
-                const { BillingService } = await import('../../services/BillingService');
-                await BillingService.initialize(productIds);
-                console.log('[Purchase] BillingService initialized successfully');
-              } catch (billingError: any) {
-                console.warn('[Purchase] BillingService initialization failed (non-critical):', billingError?.message || billingError);
-                // Billing initialization hatası kritik değil, devam edebiliriz
-                // Kullanıcı satın alma yapmaya çalıştığında tekrar deneyeceğiz
-              }
-            })();
-          }
-        } else {
-          // Fallback paketleri kullan
-          setPackages(FALLBACK_PACKAGES);
         }
       } catch (error) {
         console.error('Paketler yüklenemedi, fallback kullanılıyor:', error);
@@ -102,108 +76,14 @@ export default function Purchase() {
       }
     };
 
-    initializeBilling();
+    fetchPackages();
   }, []);
 
-  const onBuy = async () => {
+  const onBuy = () => {
     const p = packages.find(x => x.id === selectedPkg);
-    if (!p) {
-      console.error('[Purchase] Package not found for selectedPkg:', selectedPkg);
-      return;
-    }
-
-    // Eğer product_id yoksa veya Android değilse, test modunda direkt jeton ekle
-    if (!p.product_id || Platform.OS !== 'android') {
-      console.warn('[Purchase] No product_id or not Android, adding diamonds directly (test mode)');
-      addDiamonds(p.amount);
-      NavigationHelper.goToProfile();
-      return;
-    }
-
-    // Google Play Billing ile satın alma
-    if (purchasing) {
-      console.warn('[Purchase] Purchase already in progress');
-      return; // Zaten satın alma işlemi devam ediyor
-    }
-
-    setPurchasing(true);
-    try {
-      console.log('[Purchase] Attempting to load BillingService...');
-      
-      // Lazy import BillingService
-      let BillingService: any;
-      try {
-        const billingModule = await import('../../services/BillingService');
-        BillingService = billingModule.BillingService;
-        console.log('[Purchase] BillingService loaded successfully');
-      } catch (importError: any) {
-        console.error('[Purchase] Failed to import BillingService:', importError);
-        throw new Error('BillingService modülü yüklenemedi: ' + (importError?.message || 'Bilinmeyen hata'));
-      }
-
-      // BillingService'in initialize edilip edilmediğini kontrol et ve gerekirse initialize et
-      try {
-        console.log('[Purchase] Checking BillingService initialization...');
-        // Initialize edilmemişse tekrar dene
-        const productIds = packages
-          .map(pkg => pkg.product_id)
-          .filter((id): id is string => !!id);
-        
-        if (productIds.length > 0) {
-          await BillingService.initialize(productIds);
-          console.log('[Purchase] BillingService initialized');
-        }
-      } catch (initError: any) {
-        console.warn('[Purchase] BillingService initialization warning (may already be initialized):', initError?.message);
-        // Initialize hatası kritik değil, devam et
-      }
-      
-      console.log('[Purchase] Starting purchase for product:', p.product_id);
-      const result = await BillingService.purchase(p.product_id);
-      
-      if (result.success) {
-        // Backend'den jetonlar zaten yüklendi, sadece UI'ı güncelle
-        const creditedAmount = result.diamondsCredited || p.amount;
-        addDiamonds(creditedAmount);
-        
-        Alert.alert(
-          'Başarılı!',
-          `${creditedAmount} jeton hesabınıza yüklendi.`,
-          [{ text: 'Tamam', onPress: () => NavigationHelper.goToProfile() }]
-        );
-      } else {
-        Alert.alert(
-          'Satın Alma Başarısız',
-          result.message || 'Satın alma işlemi tamamlanamadı. Lütfen tekrar deneyin.',
-          [{ text: 'Tamam' }]
-        );
-      }
-    } catch (error: any) {
-      console.error('[Purchase] Purchase error:', error);
-      console.error('[Purchase] Error stack:', error?.stack);
-      console.error('[Purchase] Error details:', JSON.stringify(error, null, 2));
-      
-      // Eğer BillingService yüklenemezse, test modunda devam et
-      if (error?.message?.includes('Cannot find module') || 
-          error?.message?.includes('BillingService modülü') ||
-          error?.code === 'MODULE_NOT_FOUND') {
-        console.warn('[Purchase] BillingService not available, using test mode');
-        addDiamonds(p.amount);
-        Alert.alert(
-          'Test Modu',
-          `${p.amount} jeton test modunda eklendi. Production build'de gerçek satın alma çalışacak.`,
-          [{ text: 'Tamam', onPress: () => NavigationHelper.goToProfile() }]
-        );
-      } else {
-        Alert.alert(
-          'Hata',
-          error?.message || 'Satın alma sırasında bir hata oluştu. Lütfen tekrar deneyin.',
-          [{ text: 'Tamam' }]
-        );
-      }
-    } finally {
-      setPurchasing(false);
-    }
+    if (!p) return;
+    addDiamonds(p.amount);
+    NavigationHelper.goToProfile();
   };
 
   return (
@@ -284,24 +164,10 @@ export default function Purchase() {
 
       {/* Buy button */}
       <View style={styles.buyBar}>
-        <TouchableOpacity 
-          onPress={onBuy} 
-          style={[styles.buyBtn, purchasing && styles.buyBtnDisabled]} 
-          activeOpacity={0.92}
-          disabled={purchasing || loading}
-        >
+        <TouchableOpacity onPress={onBuy} style={styles.buyBtn} activeOpacity={0.92}>
           <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.buyGrad}>
-            {purchasing ? (
-              <>
-                <ActivityIndicator size="small" color="#fff" />
-                <Text style={styles.buyText}>İşleniyor...</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="diamond" size={18} color="#fff" />
-                <Text style={styles.buyText}>Satın Al</Text>
-              </>
-            )}
+            <Ionicons name="diamond" size={18} color="#fff" />
+            <Text style={styles.buyText}>Satın Al</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -375,7 +241,6 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
   },
   buyBtn: { borderRadius: 14, overflow: 'hidden' },
-  buyBtnDisabled: { opacity: 0.6 },
   buyGrad: { height: 48, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   buyText: { color: '#fff', fontSize: 16, fontWeight: '700', marginLeft: 6 },
 });
