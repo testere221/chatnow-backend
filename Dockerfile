@@ -3,13 +3,13 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Package files
+# Copy backend package files
 COPY backend/package*.json ./
 
 # Install dependencies
 RUN npm ci --omit=dev
 
-# Copy source code
+# Copy backend source code
 COPY backend/ ./
 
 # Runtime
@@ -22,10 +22,8 @@ COPY --from=builder /app /app
 
 # Environment
 ENV NODE_ENV=production
-# PORT environment variable Koyeb tarafından otomatik set edilir
-# Backend kodunda process.env.PORT || 3000 kullanılıyor
+ENV PORT=8080
 
-# Koyeb PORT'u otomatik set eder, ama expose için bir port belirtmeliyiz
 EXPOSE 8080
 
 # Start
