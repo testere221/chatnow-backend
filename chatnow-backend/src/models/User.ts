@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IUser extends Document {
   _id: string;
   email: string;
+  password: string;
   name: string;
   surname: string;
   age: number;
@@ -27,6 +28,11 @@ const UserSchema = new Schema<IUser>({
     unique: true,
     lowercase: true,
     trim: true
+  },
+  password: {
+    type: String,
+    required: true,
+    select: false // Şifreyi varsayılan olarak sorgulardan hariç tut
   },
   name: {
     type: String,

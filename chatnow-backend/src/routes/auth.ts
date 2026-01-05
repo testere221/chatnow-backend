@@ -90,13 +90,22 @@ export default new Elysia()
       // Veri doğrulama
       const validatedData = loginSchema.parse(body);
       
-      // Kullanıcı bul
-      const user = await User.findOne({ email: validatedData.email });
+      // Kullanıcı bul (password field'ını da getir)
+      const user = await User.findOne({ email: validatedData.email }).select('+password');
       if (!user) {
         set.status = 401;
         return {
           success: false,
           message: 'Email veya şifre hatalı'
+        };
+      }
+      
+      // Password kontrolü
+      if (!user.password) {
+        set.status = 401;
+        return {
+          success: false,
+          message: 'Kullanıcı şifresi bulunamadı'
         };
       }
       
