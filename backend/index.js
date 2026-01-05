@@ -20,7 +20,6 @@ const Block = require('./models/Block');
 const Admin = require('./models/Admin');
 const TokenPackage = require('./models/TokenPackage');
 const Report = require('./models/Report');
-const Purchase = require('./models/Purchase');
 
 // Services
 const { sendEmail } = require('./services/emailService');
@@ -138,21 +137,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
-
-// Tüm request'leri logla (debug için)
-app.use((req, res, next) => {
-  if (req.method === 'POST' && req.path.includes('/api/users')) {
-    console.log('🔍 POST request received:', {
-      method: req.method,
-      path: req.path,
-      url: req.url,
-      originalUrl: req.originalUrl,
-      baseUrl: req.baseUrl
-    });
-  }
-  next();
-});
-
 app.use(express.json({ limit: '2mb' })); // JSON limit
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
@@ -192,15 +176,12 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    console.log('❌ authenticateToken: Token yok');
     return res.status(401).json({ message: 'Token gerekli' });
   }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
-      console.log('❌ authenticateToken: Token verify hatası:', err.message);
-      console.log('❌ Token:', token.substring(0, 20) + '...');
-      return res.status(403).json({ message: 'Geçersiz token', error: err.message });
+      return res.status(403).json({ message: 'Geçersiz token' });
     }
     req.user = user;
     next();
@@ -308,23 +289,18 @@ console.log('🔗 MongoDB URI:', MONGODB_URI ? 'Connected' : 'Not set');
 
 mongoose.connect(MONGODB_URI, {
   maxPoolSize: 10, // Maksimum bağlantı sayısı
-  serverSelectionTimeoutMS: 5000, // Sunucu seçim timeout (5 saniye - daha hızlı hata)
-  socketTimeoutMS: 45000, // Socket timeout (45 saniye)
-  connectTimeoutMS: 10000, // Bağlantı timeout (10 saniye)
-}).catch((err) => {
-  console.error('❌ MongoDB bağlantı hatası:', err.message);
-  console.error('💡 Çözüm:');
-  console.error('   1. MongoDB Atlas IP whitelist\'ine IP\'ni ekle');
-  console.error('   2. Ya da local MongoDB kullan: mongodb://localhost:27017/chatnow');
-  console.error('   3. .env dosyasında MONGODB_URI\'yi kontrol et');
+  serverSelectionTimeoutMS: 30000, // Sunucu seçim timeout (30 saniye)
+  socketTimeoutMS: 30000, // Socket timeout (30 saniye)
+  connectTimeoutMS: 30000, // Bağlantı timeout (30 saniye)
 });
 
 mongoose.connection.on('connected', () => {
-  console.log('✅ MongoDB bağlantısı başarılı');
+  // MongoDB bağlantısı başarılı
+  // MongoDB bağlantısı başarılı
 });
 
 mongoose.connection.on('error', (err) => {
-  console.error('❌ MongoDB bağlantı hatası:', err.message);
+  // MongoDB bağlantı hatası
 });
 
 // API Routes
@@ -422,37 +398,33 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('🔐 Login attempt for email:', email);
+    // Login denemesi
 
     const user = await User.findOne({ email });
+    // Kullanıcı bulundu
     
     if (!user || !user.password) {
-      console.log('❌ User not found or no password');
       return res.status(401).json({ message: 'Geçersiz kimlik bilgileri.' });
     }
-
-    console.log('✅ User found:', user.email);
 
     // Şifre karşılaştırması
     // Geçici olarak bcrypt yerine basit string karşılaştırması
     const isPasswordValid = password === user.password; 
     
     if (!isPasswordValid) {
-      console.log('❌ Password invalid');
+      // Geçersiz şifre
       return res.status(401).json({ message: 'Geçersiz kimlik bilgileri.' });
     }
-
-    console.log('✅ Password valid for user:', user.email);
 
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
     
     await User.findByIdAndUpdate(user._id, { is_online: true, last_active: new Date() });
 
-    const responseData = {
+    res.json({
       message: 'Giriş başarılı!',
       token,
       user: {
-        id: user._id.toString(), // MongoDB ObjectId'yi string'e çevir
+        id: user._id,
         email: user.email,
         name: user.name,
         surname: user.surname,
@@ -463,17 +435,13 @@ app.post('/api/auth/login', async (req, res) => {
         avatar_image: user.avatar_image,
         bg_color: user.bg_color,
         about: user.about,
-        hobbies: user.hobbies || [],
-        diamonds: user.diamonds || 0,
-        is_online: true,
-        last_active: new Date()
+        hobbies: user.hobbies,
+        diamonds: user.diamonds,
+        is_online: user.is_online,
+        last_active: user.last_active
       }
-    };
-
-    console.log('✅ Sending login response with token:', !!token, 'user:', !!responseData.user);
-    res.json(responseData);
+    });
   } catch (error) {
-    console.error('❌ Login error:', error);
     res.status(500).json({ message: 'Giriş sırasında bir hata oluştu.', error: error.message });
   }
 });
@@ -510,11 +478,6 @@ app.get('/api/users/paginated', authenticateToken, async (req, res) => {
 
     // Pagination request
     const currentUserId = req.user.userId;
-    
-    // currentUserId'yi ObjectId'ye çevir (eğer string ise)
-    const currentUserObjectId = mongoose.Types.ObjectId.isValid(currentUserId) 
-      ? new mongoose.Types.ObjectId(currentUserId) 
-      : currentUserId;
 
     let query = {};
     let sort = {};
@@ -530,7 +493,7 @@ app.get('/api/users/paginated', authenticateToken, async (req, res) => {
     }
 
     // Mevcut kullanıcıyı hariç tut
-    query._id = { $ne: currentUserObjectId };
+    query._id = { $ne: currentUserId };
 
     // Karşılıklı engelleme kontrolü
     const blockedByMe = await Block.find({ blocker_id: currentUserId }).select('blocked_id');
@@ -543,14 +506,9 @@ app.get('/api/users/paginated', authenticateToken, async (req, res) => {
 
     // Engellenen kullanıcıları hariç tut
     if (blockedUserIds.length > 0) {
-      // Blocked user ID'lerini ObjectId'ye çevir
-      const blockedObjectIds = blockedUserIds
-        .filter(id => mongoose.Types.ObjectId.isValid(id))
-        .map(id => new mongoose.Types.ObjectId(id));
-      
       query._id = { 
-        $ne: currentUserObjectId,
-        $nin: blockedObjectIds.length > 0 ? blockedObjectIds : blockedUserIds
+        $ne: currentUserId,
+        $nin: blockedUserIds
       };
     }
 
@@ -566,7 +524,7 @@ app.get('/api/users/paginated', authenticateToken, async (req, res) => {
       const userObj = user.toObject ? user.toObject() : user;
       return {
         ...userObj,
-        id: userObj._id?.toString() || String(userObj._id), // MongoDB ObjectId'yi string'e çevir
+        id: userObj._id, // Add id field for frontend compatibility
         last_active: userObj.last_active || new Date(),
         is_online: userObj.is_online || false
       };
@@ -1149,25 +1107,11 @@ app.post('/api/users/update-diamonds', authenticateToken, async (req, res) => {
   }
 });
 
-// Update user data endpoint - Spesifik route, :id route'larından önce olmalı
+// Update user data endpoint
 app.post('/api/users/update', authenticateToken, async (req, res) => {
   try {
-    console.log('🔧 Profile update request received');
-    console.log('🔧 Request URL:', req.url);
-    console.log('🔧 Request path:', req.path);
-    console.log('🔧 Request method:', req.method);
     const userId = req.user.userId;
     const { name, surname, age, location, about, hobbies, avatar_image } = req.body;
-    
-    console.log('🔧 Update data:', { userId, name, surname, age, location, about, hobbies, hasAvatarImage: !!avatar_image });
-
-    // userId'yi ObjectId'ye çevir (eğer string ise)
-    let userObjectId;
-    if (mongoose.Types.ObjectId.isValid(userId)) {
-      userObjectId = new mongoose.Types.ObjectId(userId);
-    } else {
-      userObjectId = userId;
-    }
 
     // Profil güncelleme isteği
 
@@ -1189,20 +1133,16 @@ app.post('/api/users/update', authenticateToken, async (req, res) => {
     }
 
     // Update data hazırlandı
-    console.log('🔧 Updating user with ObjectId:', userObjectId);
 
     const updatedUser = await User.findByIdAndUpdate(
-      userObjectId,
+      userId,
       updateData,
       { new: true }
     );
 
     if (!updatedUser) {
-      console.error('❌ User not found:', userObjectId);
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
-    
-    console.log('✅ User updated successfully:', updatedUser._id);
 
     // Kullanıcı başarıyla güncellendi
 
@@ -1519,68 +1459,6 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Profil bilgileri alınırken hata oluştu.', error: error.message });
-  }
-});
-
-// Get user by ID - Sadece geçerli MongoDB ObjectId formatındaki ID'ler için çalışır
-// ÖNEMLİ: Bu route sadece 24 karakterlik hex string (ObjectId) formatındaki ID'ler için eşleşir
-// Bu sayede "paginated", "profile", "blocked" gibi string'ler bu route'a düşmez
-app.get('/api/users/:id', async (req, res, next) => {
-  const userId = req.params.id;
-  
-  // İLK KONTROL: Reserved route'ları engelle (ObjectId validation'dan ÖNCE)
-  // Bu kontrol MUTLAKA User.findById çağrısından ÖNCE yapılmalı
-  const reservedRoutes = ['paginated', 'profile', 'blocked', 'update', 'update-diamonds'];
-  if (reservedRoutes.includes(userId)) {
-    console.log(`⚠️ Reserved route blocked: /api/users/${userId} - Returning 404`);
-    return res.status(404).json({ message: 'Route not found' });
-  }
-  
-  // İKİNCİ KONTROL: ObjectId formatı kontrolü - Geçersiz formatlar için hemen dön
-  // ObjectId formatı: 24 karakterlik hex string (0-9, a-f, A-F)
-  const objectIdRegex = /^[0-9a-fA-F]{24}$/;
-  if (!objectIdRegex.test(userId)) {
-    console.log(`⚠️ Invalid ObjectId format (regex): ${userId} - Returning 404`);
-    return res.status(404).json({ message: 'Route not found' });
-  }
-  
-  // ÜÇÜNCÜ KONTROL: Mongoose ObjectId validation
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    console.log(`⚠️ Invalid ObjectId format (mongoose): ${userId} - Returning 404`);
-    return res.status(404).json({ message: 'Route not found' });
-  }
-  
-  // Sadece geçerli ObjectId formatındaki ID'ler için devam et
-  // User.findById çağrısı SADECE buraya geldiğinde yapılmalı
-  try {
-    console.log(`✅ Valid ObjectId, fetching user: ${userId}`);
-    const user = await User.findById(userId).select('-password');
-    if (!user) {
-      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
-    }
-
-    res.json({
-      id: user._id.toString(),
-      _id: user._id.toString(),
-      name: user.name,
-      surname: user.surname,
-      age: user.age,
-      location: user.location,
-      gender: user.gender,
-      avatar: user.avatar,
-      avatar_image: user.avatar_image,
-      bg_color: user.bg_color,
-      about: user.about,
-      hobbies: user.hobbies,
-      diamonds: user.diamonds,
-      is_online: user.is_online,
-      last_active: user.last_active,
-      created_at: user.created_at,
-      updated_at: user.updated_at
-    });
-  } catch (error) {
-    console.error('❌ Get user error:', error);
-    res.status(500).json({ message: 'Kullanıcı bilgileri alınırken hata oluştu.', error: error.message });
   }
 });
 
@@ -2303,20 +2181,10 @@ app.post('/api/billing/verify', authenticateToken, async (req, res) => {
     const { productId, purchaseToken, orderId, packageName } = req.body || {};
     const userId = req.user.userId;
 
-    console.log('💳 Purchase verify request:', { userId, productId, orderId, packageName: packageName || 'com.ferhatkortak2.chatnow' });
+    console.log('💳 Purchase verify request:', { userId, productId, orderId, packageName: packageName || 'com.ferhatkortak2.florty' });
 
     if (!productId || !purchaseToken) {
       return res.status(400).json({ message: 'Eksik parametre: productId ve purchaseToken gerekli' });
-    }
-
-    // 0) Check if this purchase token was already used (duplicate prevention)
-    const existingPurchase = await Purchase.findOne({ purchase_token: purchaseToken });
-    if (existingPurchase) {
-      console.error('❌ Duplicate purchase detected:', { purchaseToken: purchaseToken.substring(0, 20) + '...', userId, existingUserId: existingPurchase.user_id });
-      return res.status(400).json({ 
-        message: 'Bu satın alma zaten işlenmiş. Tekrar kullanılamaz.',
-        error: 'DUPLICATE_PURCHASE'
-      });
     }
 
     // 1) Find token package by product_id
@@ -2326,75 +2194,56 @@ app.post('/api/billing/verify', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Ürün bulunamadı: ' + productId });
     }
 
-    // 2) Verify with Google Play Developer API - ZORUNLU!
-    let verificationSuccess = false;
-    let googlePlayResponse = null;
-    
-    if (!androidPublisher) {
-      console.error('❌ Google Play API not configured - purchase verification REQUIRED');
-      return res.status(500).json({ 
-        message: 'Ödeme doğrulama sistemi yapılandırılmamış. Lütfen yöneticiye bildirin.',
-        error: 'GOOGLE_SERVICE_ACCOUNT_KEY not set'
-      });
-    }
-
-    try {
-      const pkgName = packageName || 'com.ferhatkortak2.chatnow';
-      console.log('🔍 Verifying purchase with Google Play API...', { packageName: pkgName, productId, purchaseToken: purchaseToken.substring(0, 20) + '...' });
-      
-      googlePlayResponse = await androidPublisher.purchases.products.get({
-        packageName: pkgName,
-        productId: productId,
-        token: purchaseToken,
-      });
-
-      const purchaseState = googlePlayResponse.data.purchaseState;
-      const consumptionState = googlePlayResponse.data.consumptionState;
-
-      console.log('✅ Google Play API response:', { purchaseState, consumptionState, orderId: googlePlayResponse.data.orderId });
-
-      // purchaseState: 0 = purchased, 1 = canceled
-      if (purchaseState !== 0) {
-        console.error('❌ Purchase not valid - state:', purchaseState);
-        return res.status(400).json({ message: 'Satın alma geçersiz veya iptal edilmiş' });
-      }
-
-      // consumptionState: 0 = not consumed, 1 = consumed
-      if (consumptionState === 1) {
-        console.error('❌ Purchase already consumed');
-        return res.status(400).json({ message: 'Bu satın alma zaten kullanılmış' });
-      }
-
-      // Acknowledge/consume the purchase
+    // 2) Verify with Google Play Developer API
+    if (androidPublisher) {
       try {
-        await androidPublisher.purchases.products.acknowledge({
+        const pkgName = packageName || 'com.ferhatkortak2.florty';
+        console.log('🔍 Verifying purchase with Google Play API...', { packageName: pkgName, productId, purchaseToken: purchaseToken.substring(0, 20) + '...' });
+        
+        const response = await androidPublisher.purchases.products.get({
           packageName: pkgName,
           productId: productId,
           token: purchaseToken,
         });
-        console.log('✅ Purchase acknowledged');
-        verificationSuccess = true;
-      } catch (ackError) {
-        console.warn('⚠️  Acknowledge failed (might be already acknowledged):', ackError.message);
-        // Acknowledge hatası olsa bile, purchase state geçerliyse devam edebiliriz
-        verificationSuccess = true;
+
+        const purchaseState = response.data.purchaseState;
+        const consumptionState = response.data.consumptionState;
+
+        console.log('✅ Google Play API response:', { purchaseState, consumptionState, orderId: response.data.orderId });
+
+        // purchaseState: 0 = purchased, 1 = canceled
+        if (purchaseState !== 0) {
+          console.error('❌ Purchase not valid - state:', purchaseState);
+          return res.status(400).json({ message: 'Satın alma geçersiz' });
+        }
+
+        // consumptionState: 0 = not consumed, 1 = consumed
+        if (consumptionState === 1) {
+          console.error('❌ Purchase already consumed');
+          return res.status(400).json({ message: 'Bu satın alma zaten kullanılmış' });
+        }
+
+        // Acknowledge/consume the purchase
+        try {
+          await androidPublisher.purchases.products.acknowledge({
+            packageName: pkgName,
+            productId: productId,
+            token: purchaseToken,
+          });
+          console.log('✅ Purchase acknowledged');
+        } catch (ackError) {
+          console.warn('⚠️  Acknowledge failed (might be already acknowledged):', ackError.message);
+        }
+      } catch (apiError) {
+        console.error('❌ Google Play API verification failed:', apiError.message);
+        // Continue anyway for testing - remove this in production!
+        console.warn('⚠️  Continuing despite API error for testing...');
       }
-    } catch (apiError) {
-      console.error('❌ Google Play API verification failed:', apiError.message);
-      console.error('❌ API Error details:', apiError);
-      return res.status(400).json({ 
-        message: 'Ödeme doğrulaması başarısız. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin.',
-        error: apiError.message 
-      });
+    } else {
+      console.warn('⚠️  Google Play API not configured - skipping verification (TEST MODE)');
     }
 
-    // Sadece doğrulama başarılıysa jetonları yükle
-    if (!verificationSuccess) {
-      console.error('❌ Purchase verification failed - NOT crediting diamonds');
-      return res.status(400).json({ message: 'Ödeme doğrulaması başarısız' });
-    }
-
-    // 3) Credit diamonds atomically (sadece doğrulama başarılıysa)
+    // 3) Credit diamonds atomically
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $inc: { diamonds: pkg.token_amount }, last_active: new Date() },
@@ -2408,25 +2257,7 @@ app.post('/api/billing/verify', authenticateToken, async (req, res) => {
 
     console.log('✅ Diamonds credited:', { userId, amount: pkg.token_amount, newTotal: updatedUser.diamonds });
 
-    // 4) Save purchase record to prevent duplicates
-    try {
-      const purchaseRecord = new Purchase({
-        user_id: userId,
-        product_id: productId,
-        purchase_token: purchaseToken,
-        order_id: orderId || googlePlayResponse?.data?.orderId,
-        package_name: packageName || 'com.ferhatkortak2.chatnow',
-        token_amount: pkg.token_amount,
-        verified: true
-      });
-      await purchaseRecord.save();
-      console.log('✅ Purchase record saved:', { purchaseId: purchaseRecord._id });
-    } catch (saveError) {
-      // Purchase kaydı kaydedilemezse bile jetonlar yüklendi, bu kritik değil ama log'layalım
-      console.error('⚠️  Failed to save purchase record (non-critical):', saveError.message);
-    }
-
-    // 5) Return credited info
+    // 4) Return credited info
     return res.json({
       success: true,
       diamondsCredited: pkg.token_amount,
@@ -3635,61 +3466,13 @@ app.post('/api/admin/seed-token-packages', async (req, res) => {
 });
 
 // Server başlat
-// Server başlatılıyor - Koyeb auto-deploy test
 server.listen(PORT, '0.0.0.0', () => {
-  const os = require('os');
-  const networkInterfaces = os.networkInterfaces();
-  let localIP = 'localhost';
-  
-  // Local network IP'yi bul (VirtualBox network'ünü atla)
-  for (const interfaceName in networkInterfaces) {
-    const interfaces = networkInterfaces[interfaceName];
-    for (const iface of interfaces) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        // VirtualBox network'ünü atla (192.168.56.x)
-        if (!iface.address.startsWith('192.168.56.')) {
-          localIP = iface.address;
-          break;
-        }
-      }
-    }
-    if (localIP !== 'localhost' && !localIP.startsWith('192.168.56.')) break;
-  }
-  
-  // Eğer hala VirtualBox IP'si bulunduysa, tüm IP'leri listele ve en uygun olanı seç
-  if (localIP.startsWith('192.168.56.')) {
-    const allIPs = [];
-    for (const interfaceName in networkInterfaces) {
-      const interfaces = networkInterfaces[interfaceName];
-      for (const iface of interfaces) {
-        if (iface.family === 'IPv4' && !iface.internal) {
-          allIPs.push(iface.address);
-        }
-      }
-    }
-    // 192.168.204.x veya 192.168.1.x gibi gerçek network IP'sini bul
-    const realIP = allIPs.find(ip => ip.startsWith('192.168.204.') || ip.startsWith('192.168.1.') || ip.startsWith('192.168.0.'));
-    if (realIP) {
-      localIP = realIP;
-    }
-  }
-  
-  console.log('\n🚀 ========================================');
-  console.log(`   Backend Server Başlatıldı!`);
-  console.log('🚀 ========================================');
-  console.log(`\n📱 Local Development:`);
-  console.log(`   http://localhost:${PORT}`);
-  console.log(`\n📱 Expo Go için (Network IP):`);
-  console.log(`   http://${localIP}:${PORT}`);
-  console.log(`\n⚠️  Frontend'de kullanılan IP: 192.168.204.149`);
-  console.log(`   Eğer bu IP farklıysa, config/api.ts dosyasını güncelle!`);
-  console.log(`\n🔐 Admin Panel:`);
-  console.log(`   http://localhost:${PORT}/admin`);
-  console.log(`\n🧪 Test Endpoints:`);
-  console.log(`   GET  http://localhost:${PORT}/api/test`);
-  console.log(`   POST http://localhost:${PORT}/api/test/create-users`);
-  console.log(`   DELETE http://localhost:${PORT}/api/test/delete-users`);
-  console.log(`\n💡 Expo Go kullanıyorsan, frontend'de IP'yi şu şekilde güncelle:`);
-  console.log(`   config/api.ts -> BASE_URL: 'http://${localIP}:${PORT}'`);
-  console.log('\n');
+  console.log(`🚀 Server çalışıyor: http://localhost:${PORT}`);
+  console.log(`🌐 Public Server: http://0.0.0.0:${PORT}`);
+  console.log(`📱 Mobile API: http://192.168.42.238:${PORT}`);
+  // console.log(`📊 WebSocket: ws://192.168.42.238:${PORT}`);
+  console.log(`📱 API Test: http://localhost:${PORT}/api/test`);
+  console.log(`🧪 Test Users: POST http://localhost:${PORT}/api/test/create-users`);
+  console.log(`🗑️ Delete Test: DELETE http://localhost:${PORT}/api/test/delete-users`);
+  console.log(`🔐 Admin Panel: http://localhost:${PORT}/admin`);
 });
