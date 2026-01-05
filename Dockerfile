@@ -3,14 +3,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy backend package files
-COPY backend/package*.json ./
+# Copy chatnow-backend package files
+COPY chatnow-backend/package*.json ./
 
 # Install dependencies
 RUN npm ci --omit=dev
 
-# Copy backend source code
-COPY backend/ ./
+# Copy chatnow-backend source code
+COPY chatnow-backend/ ./
 
 # Runtime
 FROM node:20-alpine
@@ -26,5 +26,5 @@ ENV PORT=8080
 
 EXPOSE 8080
 
-# Start
-CMD ["node", "index.js"]
+# Start - Elysia/Bun backend uses src/index.ts
+CMD ["node", "src/index.js"]

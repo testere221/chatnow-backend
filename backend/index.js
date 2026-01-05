@@ -403,13 +403,32 @@ app.post('/api/auth/login', async (req, res) => {
     const user = await User.findOne({ email });
     // Kullanıcı bulundu
     
-    if (!user || !user.password) {
+    if (!user) {
       return res.status(401).json({ message: 'Geçersiz kimlik bilgileri.' });
     }
 
-    // Şifre karşılaştırması
-    // Geçici olarak bcrypt yerine basit string karşılaştırması
-    const isPasswordValid = password === user.password; 
+    // Password kontrolü
+    if (!user.password) {
+      console.error('❌ User found but password is undefined:', { email, userId: user._id });
+      return res.status(401).json({ message: 'Kullanıcı şifresi bulunamadı. Lütfen şifrenizi sıfırlayın.' });
+    }
+
+    // Şifre karşılaştırması - hem hash'lenmiş hem de plain text şifreleri kontrol et
+    let isPasswordValid = false;
+    
+    // Önce bcrypt ile kontrol et (hash'lenmiş şifreler için)
+    if (user.password.startsWith('$2')) {
+      // Bcrypt hash formatı ($2a$, $2b$, $2y$)
+      try {
+        isPasswordValid = await bcrypt.compare(password, user.password);
+      } catch (bcryptError) {
+        console.error('❌ Bcrypt compare error:', bcryptError);
+        isPasswordValid = false;
+      }
+    } else {
+      // Plain text şifre (eski kullanıcılar için)
+      isPasswordValid = password === user.password;
+    } 
     
     if (!isPasswordValid) {
       // Geçersiz şifre
